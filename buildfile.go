@@ -45,7 +45,7 @@ func (b *buildFile) clearTmp(containers, images map[string]struct{}) {
 		utils.Debugf("Removing container %s", c)
 	}
 	for i := range images {
-		b.runtime.graph.Delete(i)
+		b.runtime.DeleteImage(i)
 		utils.Debugf("Removing image %s", i)
 	}
 }
