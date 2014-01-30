@@ -139,6 +139,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	defer runtime.driver.Put(container.ID)
 	container.rootfs = rootfs
 
+	container.execDriver = runtime.execDriver
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
@@ -816,18 +817,6 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 		return nil, err
 	}
 	return EofReader(archive, func() { runtime.driver.Put(container.ID) }), nil
-}
-
-func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
-	return runtime.execDriver.Run(c.command, startCallback)
-}
-
-func (runtime *Runtime) Kill(c *Container, sig int) error {
-	return runtime.execDriver.Kill(c.command, sig)
-}
-
-func (runtime *Runtime) RestoreCommand(c *Container) error {
-	return runtime.execDriver.Restore(c.command)
 }
 
 // Nuke kills all containers then removes all content

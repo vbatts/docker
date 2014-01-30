@@ -36,6 +36,8 @@ type Container struct {
 	root   string // Path to the "home" of the container, including metadata.
 	rootfs string // Path to the root filesystem of the container.
 
+	execDriver execdriver.Driver
+
 	ID string
 
 	Created time.Time
@@ -1199,9 +1201,9 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.command == nil {
 		// This happends when you have a GHOST container with lxc
 		populateCommand(container)
-		err = container.runtime.RestoreCommand(container)
+		err = container.execDriver.Restore(container.command)
 	} else {
-		exitCode, err = container.runtime.Run(container, callback)
+		exitCode, err = container.execDriver.Run(container.command, callback)
 	}
 
 	if err != nil {
@@ -1276,7 +1278,7 @@ func (container *Container) kill(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
-	return container.runtime.Kill(container, sig)
+	return container.execDriver.Kill(container.command, sig)
 }
 
 func (container *Container) Kill() error {
@@ -1295,7 +1297,7 @@ func (container *Container) Kill() error {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))
-		if err := container.runtime.Kill(container, 9); err != nil {
+		if err := container.execDriver.Kill(container.command, 9); err != nil {
 			return err
 		}
 	}
