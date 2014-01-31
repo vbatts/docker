@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/execrpc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
@@ -595,15 +596,24 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 
+	if container.hostConfig.CliAddress != "" {
+		container.execDriver = execrpc.NewDriver(container.hostConfig.CliAddress)
+	}
+
 	// Setuping pipes and/or Pty
 	var setup func() error
-	if container.Config.Tty {
+	if container.hostConfig.CliAddress != "" {
+		// No need to set up stdin/out in the daemon, since we inherit from the parent
+		setup = nil
+	} else if container.Config.Tty {
 		setup = container.setupPty
 	} else {
 		setup = container.setupStd
 	}
-	if err := setup(); err != nil {
-		return err
+	if setup != nil {
+		if err := setup(); err != nil {
+			return err
+		}
 	}
 
 	callbackLock := make(chan struct{})

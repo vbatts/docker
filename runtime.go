@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/execrpc"
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
@@ -136,6 +137,10 @@ func (runtime *Runtime) Register(container *Container) error {
 
 	container.execDriver = runtime.execDriver
 	container.runtime = runtime
+
+	if container.hostConfig.CliAddress != "" {
+		container.execDriver = execrpc.NewDriver(container.hostConfig.CliAddress)
+	}
 
 	// Attach to stdout and stderr
 	container.stderr = utils.NewWriteBroadcaster()
