@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/execrpc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/pkg/mount"
@@ -154,6 +155,7 @@ type HostConfig struct {
 	PortBindings    map[Port][]PortBinding
 	Links           []string
 	PublishAllPorts bool
+	CliAddress      string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -161,6 +163,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
+		CliAddress:      job.Getenv("CliAddress"),
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
@@ -782,6 +785,13 @@ func (container *Container) Start() (err error) {
 	}
 	if err := setup(); err != nil {
 		return err
+	}
+
+	if container.hostConfig.CliAddress != "" {
+		container.execDriver, err = execrpc.NewDriver(container.hostConfig.CliAddress)
+		if err != nil {
+			return err
+		}
 	}
 
 	callbackLock := make(chan struct{})
