@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/systemd"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -713,19 +714,25 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 	/*
 		temporarilly disabled.
 	*/
+	var ed execdriver.Driver
+	if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
+    utils.Debugf("using lxc")
+		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
+	} else if driver := os.Getenv("EXEC_DRIVER"); driver == "systemd" {
+    utils.Debugf("using systemd")
+		ed, err = systemd.NewDriver()
+	} else {
+    utils.Debugf("using chroot")
+		ed, err = chroot.NewDriver()
+	}
 	if false {
-		var ed execdriver.Driver
-		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
-			ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
-		} else {
-			ed, err = chroot.NewDriver()
+		/*	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)*/
+		ed, err := systemd.NewDriver()
+		if err != nil {
+			return nil, err
 		}
 		if ed != nil {
 		}
-	}
-	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)
-	if err != nil {
-		return nil, err
 	}
 
 	runtime := &Runtime{
