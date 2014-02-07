@@ -3,7 +3,7 @@ package execrpc
 import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/systemd"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
@@ -108,7 +108,7 @@ type CmdDriver struct {
 }
 
 func NewCmdDriver(stdin bool) (*CmdDriver, error) {
-	realDriver, err := lxc.NewDriver("/var/lib/docker", false)
+	realDriver, err := systemd.NewDriver()
 	if err != nil {
 		return nil, err
 	}

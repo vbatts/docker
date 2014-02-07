@@ -715,25 +715,25 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 	/*
 		temporarilly disabled.
 	*/
-	var ed execdriver.Driver
-	if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
-    utils.Debugf("using lxc")
-		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
-	} else if driver := os.Getenv("EXEC_DRIVER"); driver == "systemd" {
-    utils.Debugf("using systemd")
-		ed, err = systemd.NewDriver()
-	} else {
-    utils.Debugf("using chroot")
-		ed, err = chroot.NewDriver()
-	}
 	if false {
-		/*	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)*/
-		ed, err := systemd.NewDriver()
-		if err != nil {
-			return nil, err
+		var ed execdriver.Driver
+		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
+			utils.Debugf("using lxc")
+			ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
+		} else if driver := os.Getenv("EXEC_DRIVER"); driver == "systemd" {
+			utils.Debugf("using systemd")
+			ed, err = systemd.NewDriver()
+		} else {
+			utils.Debugf("using chroot")
+			ed, err = chroot.NewDriver()
 		}
 		if ed != nil {
 		}
+	}
+	/*	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)*/
+	ed, err := systemd.NewDriver()
+	if err != nil {
+		return nil, err
 	}
 
 	runtime := &Runtime{
