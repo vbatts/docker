@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/execdriver/execrpc"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/pkg/term"
@@ -1785,6 +1786,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
+		_ = cmd.Bool([]string{"#foreground", "f", "-foreground"}, false, "Run in foreground")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to stdin, stdout or stderr.")
@@ -1962,8 +1964,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flName        = cmd.Lookup("name")
 		flRm          = cmd.Lookup("rm")
 		flSigProxy    = cmd.Lookup("sig-proxy")
+		flForeground  = cmd.Lookup("foreground")
 		autoRemove, _ = strconv.ParseBool(flRm.Value.String())
 		sigProxy, _   = strconv.ParseBool(flSigProxy.Value.String())
+		foreground, _ = strconv.ParseBool(flForeground.Value.String())
 	)
 
 	// Disable sigProxy in case on TTY
@@ -1985,6 +1989,19 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	containerValues := url.Values{}
 	if name := flName.Value.String(); name != "" {
 		containerValues.Set("name", name)
+	}
+
+	if foreground {
+		driver, err := execrpc.NewCmdDriver(config.AttachStdin)
+		if err != nil {
+			return err
+		}
+
+		// Start the local exec driver
+		go execrpc.Serve(driver)
+
+		// Tell daemon to use it
+		hostConfig.CliAddress = driver.Address
 	}
 
 	//create the container
@@ -2078,7 +2095,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}()
 
-	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
+	if !foreground && (config.AttachStdin || config.AttachStdout || config.AttachStderr) {
 		var (
 			out, stderr io.Writer
 			in          io.ReadCloser
