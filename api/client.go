@@ -1752,6 +1752,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 
+		// Pass through Socket activation info to the container,
+		// when present and in foreground mode
+		if len(os.Getenv("LISTEN_PID")) > 0 && len(os.Getenv("LISTEN_FDS")) > 0 {
+			config.Env = append(config.Env, "LISTEN_PID=1") // this needs to be reset for the children
+			config.Env = append(config.Env, fmt.Sprintf("LISTEN_FDS=%s", os.Getenv("LISTEN_FDS")))
+		}
+
 		// Start the local exec driver
 		go execrpc.Serve(fgDriver)
 
