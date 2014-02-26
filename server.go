@@ -702,8 +702,9 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
 		allImages map[string]*image.Image
 		err       error
+		orphans   bool = job.GetenvBool("orphans") // call this once, early
 	)
-	if job.GetenvBool("all") {
+	if job.GetenvBool("all") || orphans {
 		allImages, err = srv.runtime.Graph().Map()
 	} else {
 		allImages, err = srv.runtime.Graph().Heads()
@@ -726,17 +727,21 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			}
 
 			if out, exists := lookup[id]; exists {
-				out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
+				if !orphans {
+					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
+				}
 			} else {
-				out := &engine.Env{}
+				// get the boolean list for if only the orphans are requested
 				delete(allImages, id)
-				out.Set("ParentId", image.Parent)
-				out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
-				out.Set("Id", image.ID)
-				out.SetInt64("Created", image.Created.Unix())
-				out.SetInt64("Size", image.Size)
-				out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-				lookup[id] = out
+				if !orphans {
+					out.Set("ParentId", image.Parent)
+					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
+					out.Set("Id", image.ID)
+					out.SetInt64("Created", image.Created.Unix())
+					out.SetInt64("Size", image.Size)
+					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+					lookup[id] = out
+				}
 			}
 
 		}

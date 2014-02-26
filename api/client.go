@@ -1121,6 +1121,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	flViz := cmd.Bool([]string{"v", "#viz", "-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"t", "#tree", "-tree"}, false, "Output graph in tree format")
+	flOrphans := cmd.Bool([]string{"#orphans", "-orphans"}, false, "show only orphan images (not tagged)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1128,6 +1129,12 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	if cmd.NArg() > 1 {
 		cmd.Usage()
 		return nil
+	}
+
+	// seeing -all untagged images is redundant, and no point in seeing a visualization of that
+	if *flOrphans && (*all || *flViz || *flTree) {
+		fmt.Fprintf(cli.err, "Notice: -orphans is not to be used with -all, -tree or -viz")
+		*flOrphans = false
 	}
 
 	filter := cmd.Arg(0)
@@ -1200,6 +1207,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 		if *all {
 			v.Set("all", "1")
+		}
+		if *flOrphans {
+			v.Set("orphans", "1")
 		}
 
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
