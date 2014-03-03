@@ -577,6 +577,7 @@ To see how the ``docker:latest`` image was built:
 
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
+      --orphans=false: show only orphan images (not tagged)
       -q, --quiet=false: Only show numeric IDs
       --tree=false: Output graph in tree format
       --viz=false: Output graph in graphviz format
@@ -654,6 +655,39 @@ Displaying image hierarchy
                           └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
                             └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
                               └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
+
+Displaying untagged (orphan) images
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+    $ sudo docker images --orphans
+
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    <none>              <none>              8abc22fbb042        4 weeks ago         0 B
+    <none>              <none>              48e5f45168b9        4 weeks ago         2.489 MB
+    <none>              <none>              bf747efa0e2f        4 weeks ago         0 B
+    <none>              <none>              980fe10e5736        12 weeks ago        101.4 MB
+    <none>              <none>              dea752e4e117        12 weeks ago        101.4 MB
+    <none>              <none>              511136ea3c5a        8 months ago        0 B
+
+Making batch cleanup more accesible.
+
+
+.. code-block:: bash
+
+    $ sudo docker images --orphans
+
+    8abc22fbb042
+    48e5f45168b9
+    bf747efa0e2f
+    980fe10e5736
+    dea752e4e117
+    511136ea3c5a
+
+
+Ready for use by `docker rmi ...`
+
 
 .. _cli_import:
 
