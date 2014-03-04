@@ -1133,7 +1133,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	// seeing -all untagged images is redundant, and no point in seeing a visualization of that
 	if *flOrphans && (*all || *flViz || *flTree) {
-		fmt.Fprintf(cli.err, "Notice: --orphans is not to be used with --all, --tree or --viz")
+		fmt.Fprintln(cli.err, "Notice: --orphans is not to be used with --all, --tree or --viz")
 		*flOrphans = false
 	}
 
