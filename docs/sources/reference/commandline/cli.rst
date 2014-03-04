@@ -676,7 +676,7 @@ Making batch cleanup more accesible.
 
 .. code-block:: bash
 
-    $ sudo docker images --orphans
+    $ sudo docker images --orphans -q
 
     8abc22fbb042
     48e5f45168b9
@@ -686,7 +686,21 @@ Making batch cleanup more accesible.
     511136ea3c5a
 
 
-Ready for use by `docker rmi ...`
+Ready for use by `docker rmi ...`, like
+
+.. code-block:: bash
+
+    $ sudo docker rmi $(sudo docker images --orphans -q)
+
+    8abc22fbb042
+    48e5f45168b9
+    bf747efa0e2f
+    980fe10e5736
+    dea752e4e117
+    511136ea3c5a
+
+NOTE: This will still error if any containers exist that are using these
+untagged images.
 
 
 .. _cli_import:
