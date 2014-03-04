@@ -702,6 +702,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
 		allImages map[string]*image.Image
 		err       error
+		orphans   = job.GetenvBool("orphans") // call this once, early
 	)
 	if job.GetenvBool("all") || orphans {
 		allImages, err = srv.runtime.Graph().Map()
@@ -726,13 +727,13 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			}
 
 			if out, exists := lookup[id]; exists {
-				if !job.GetenvBool("orphans") {
+				if !orphans {
 					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
 				}
 			} else {
 				// get the boolean list for if only the orphans are requested
 				delete(allImages, id)
-				if !job.GetenvBool("orphans") {
+				if !orphans {
 					out := &engine.Env{}
 					out.Set("ParentId", image.Parent)
 					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
