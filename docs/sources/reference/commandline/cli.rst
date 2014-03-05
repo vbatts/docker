@@ -671,7 +671,12 @@ Displaying untagged (orphan) images
     <none>              <none>              dea752e4e117        12 weeks ago        101.4 MB
     <none>              <none>              511136ea3c5a        8 months ago        0 B
 
-Making batch cleanup more accesible.
+This will display orphans (untagged) images. These images occur when a new
+build of an image takes the repo:tag away from the IMAGE ID, leaving it
+untagged.  Being an orphaned image does *not* mean that a container (running or
+not) may be using it. A warning will be issued if trying to remove an image
+when a container is presently using it.
+By having this flag it allows for batch cleanup.
 
 
 .. code-block:: bash
@@ -686,7 +691,7 @@ Making batch cleanup more accesible.
     511136ea3c5a
 
 
-Ready for use by `docker rmi ...`, like
+Ready for use by `docker rmi ...`, like:
 
 .. code-block:: bash
 
@@ -699,9 +704,7 @@ Ready for use by `docker rmi ...`, like
     dea752e4e117
     511136ea3c5a
 
-NOTE: This will still error if any containers exist that are using these
-untagged images.
-
+NOTE: Docker will warn you if any containers exist that are using these untagged images.
 
 .. _cli_import:
 
