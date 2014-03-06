@@ -186,7 +186,7 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
-	job.Setenv("orphans", r.Form.Get("orphans"))
+	job.Setenv("untagged", r.Form.Get("untagged"))
 
 	if version.GreaterThanOrEqualTo("1.7") {
 		streamJSON(job, w, false)

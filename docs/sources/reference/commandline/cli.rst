@@ -577,9 +577,9 @@ To see how the ``docker:latest`` image was built:
 
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
-      --orphans=false: show only orphan images (not tagged)
       -q, --quiet=false: Only show numeric IDs
       --tree=false: Output graph in tree format
+      -u, --untagged show only untagged images
       --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
@@ -661,7 +661,7 @@ Displaying untagged (orphan) images
 
 .. code-block:: bash
 
-    $ sudo docker images --orphans
+    $ sudo docker images --untagged
 
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>              <none>              8abc22fbb042        4 weeks ago         0 B
@@ -671,17 +671,16 @@ Displaying untagged (orphan) images
     <none>              <none>              dea752e4e117        12 weeks ago        101.4 MB
     <none>              <none>              511136ea3c5a        8 months ago        0 B
 
-This will display orphans (untagged) images. These images occur when a new
-build of an image takes the repo:tag away from the IMAGE ID, leaving it
-untagged.  Being an orphaned image does *not* mean that a container (running or
-not) may be using it. A warning will be issued if trying to remove an image
-when a container is presently using it.
+This will display untagged images, that are the leaves of the images tree (not
+intermediary layers). These images occur when a new build of an image takes the
+repo:tag away from the IMAGE ID, leaving it untagged. A warning will be issued
+if trying to remove an image when a container is presently using it.
 By having this flag it allows for batch cleanup.
 
 
 .. code-block:: bash
 
-    $ sudo docker images --orphans -q
+    $ sudo docker images --untagged -q
 
     8abc22fbb042
     48e5f45168b9
@@ -695,7 +694,7 @@ Ready for use by `docker rmi ...`, like:
 
 .. code-block:: bash
 
-    $ sudo docker rmi $(sudo docker images --orphans -q)
+    $ sudo docker rmi $(sudo docker images --untagged -q)
 
     8abc22fbb042
     48e5f45168b9
