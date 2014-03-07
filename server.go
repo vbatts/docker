@@ -15,6 +15,7 @@ import (
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/filters"
 	"io"
 	"io/ioutil"
 	"log"
@@ -700,11 +701,24 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 
 func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
-		allImages map[string]*image.Image
-		err       error
-		untagged  = job.GetenvBool("untagged") // call this once, early
+		allImages   map[string]*image.Image
+		err         error
+		filt_tagged = true
 	)
-	if job.GetenvBool("all") || orphans {
+
+	imageFilters, err := filters.ParseFlag(job.Getenv("filters"), nil)
+	if err != nil {
+		return job.Error(err)
+	}
+	if i, ok := imageFilters["untagged"]; ok && strings.ToLower(i) == "true" {
+		filt_tagged = false
+	}
+	if i, ok := imageFilters["tagged"]; ok && strings.ToLower(i) == "false" {
+		filt_tagged = false
+	}
+	fmt.Println(imageFilters)
+
+	if job.GetenvBool("all") && !filt_tagged {
 		allImages, err = srv.runtime.Graph().Map()
 	} else {
 		allImages, err = srv.runtime.Graph().Heads()
@@ -727,13 +741,13 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			}
 
 			if out, exists := lookup[id]; exists {
-				if !untagged {
+				if filt_tagged {
 					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
 				}
 			} else {
 				// get the boolean list for if only the untagged images are requested
 				delete(allImages, id)
-				if !untagged {
+				if filt_tagged {
 					out := &engine.Env{}
 					out.Set("ParentId", image.Parent)
 					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})

@@ -184,9 +184,10 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 		job  = eng.Job("images")
 	)
 
+	job.Setenv("filters", r.Form.Get("filters"))
+	// FIXME rename this parameter, to not be confused with the filters flag
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
-	job.Setenv("untagged", r.Form.Get("untagged"))
 
 	if version.GreaterThanOrEqualTo("1.7") {
 		streamJSON(job, w, false)
