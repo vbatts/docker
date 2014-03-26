@@ -576,11 +576,12 @@ To see how the ``docker:latest`` image was built:
     List images
 
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
+      -f, --filter=[]: Provide filter values (i.e. 'tagged=false')
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
-      --tree=false: Output graph in tree format
-      -u, --untagged show only untagged images
-      --viz=false: Output graph in graphviz format
+      -t, --tree=false: Output graph in tree format
+      -v, --viz=false: Output graph in graphviz format
+
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -656,12 +657,25 @@ Displaying image hierarchy
                             └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
                               └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
-Displaying untagged (orphan) images
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Filtering
+~~~~~~~~~
+
+The filtering flag (-f or --filter) format is of "key=value". If there are more
+than one flag, then either semi-colon delimit (";"), or pass multiple flags.
+
+Current filters:
+ * tagged (boolean - true or false)
+ * untagged (boolean - true or false)
+
+
+
+Filtering for untagged images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ sudo docker images --untagged
+    $ sudo docker images --filter "tagged=false"
 
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>              <none>              8abc22fbb042        4 weeks ago         0 B
@@ -680,7 +694,7 @@ By having this flag it allows for batch cleanup.
 
 .. code-block:: bash
 
-    $ sudo docker images --untagged -q
+    $ sudo docker images -f "untagged=true" -q
 
     8abc22fbb042
     48e5f45168b9
@@ -694,7 +708,7 @@ Ready for use by `docker rmi ...`, like:
 
 .. code-block:: bash
 
-    $ sudo docker rmi $(sudo docker images --untagged -q)
+    $ sudo docker rmi $(sudo docker images -f "untagged=true" -q)
 
     8abc22fbb042
     48e5f45168b9
