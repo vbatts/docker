@@ -610,18 +610,18 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 
 // Squash creates a new filesystem image by combining multiple layers
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Squash(baseID string, leaf *image.Image, repository, tag, comment string) (*image.Image, error) {
-	basePath, err := runtime.driver.Get(baseID)
+func (daemon *Daemon) Squash(baseID string, leaf *image.Image, repository, tag, comment string) (*image.Image, error) {
+	basePath, err := daemon.driver.Get(baseID)
 	if err != nil {
 		return nil, err
 	}
-	defer runtime.driver.Put(baseID)
+	defer daemon.driver.Put(baseID)
 
-	leafPath, err := runtime.driver.Get(leaf.ID)
+	leafPath, err := daemon.driver.Get(leaf.ID)
 	if err != nil {
 		return nil, err
 	}
-	defer runtime.driver.Put(leaf.ID)
+	defer daemon.driver.Put(leaf.ID)
 
 	changes, err := archive.ChangesDirs(leafPath, basePath)
 	if err != nil {
@@ -641,14 +641,14 @@ func (runtime *Runtime) Squash(baseID string, leaf *image.Image, repository, tag
 		config = &c
 	}
 
-	img, err := runtime.graph.Create(archive, "", baseID, comment, leaf.Author, nil, config)
+	img, err := daemon.graph.Create(archive, "", baseID, comment, leaf.Author, nil, config)
 	if err != nil {
 		return nil, err
 	}
 
 	// Register the image if needed
 	if repository != "" {
-		if err := runtime.repositories.Set(repository, tag, img.ID, true); err != nil {
+		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {
 			return img, err
 		}
 	}

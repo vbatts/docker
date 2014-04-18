@@ -1132,11 +1132,11 @@ func (srv *Server) ImageSquash(job *engine.Job) engine.Status {
 		return job.Errorf("Not enough arguments. Usage: %s BASEIMAGE IMAGE\n", job.Name)
 	}
 
-	base, err := srv.runtime.Repositories().LookupImage(job.Args[0])
+	base, err := srv.daemon.Repositories().LookupImage(job.Args[0])
 	if err != nil {
 		return job.Errorf("No such image: %s", job.Args[0])
 	}
-	leaf, err := srv.runtime.Repositories().LookupImage(job.Args[1])
+	leaf, err := srv.daemon.Repositories().LookupImage(job.Args[1])
 	if err != nil {
 		return job.Errorf("No such image: %s", job.Args[1])
 	}
@@ -1158,7 +1158,7 @@ func (srv *Server) ImageSquash(job *engine.Job) engine.Status {
 		comment = "Squashed from " + leaf.ID
 	}
 
-	img, err := srv.runtime.Squash(base.ID, leaf, job.Getenv("repo"), job.Getenv("tag"), comment)
+	img, err := srv.daemon.Squash(base.ID, leaf, job.Getenv("repo"), job.Getenv("tag"), comment)
 	if err != nil {
 		return job.Error(err)
 	}
