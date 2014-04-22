@@ -1372,6 +1372,20 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 You can group your images together using names and
 tags, and then upload them to :ref:`working_with_the_repository`.
 
+.. _cli_tool:
+
+``tool``
+-------
+
+::
+
+    Usage: docker tool COMMAND [args...]
+
+    Run the docker tool identified by the arguments
+
+docker tools are not compiled into the docker core, but are utilities for
+extending functionality.
+
 .. _cli_top:
 
 ``top``
