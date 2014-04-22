@@ -30,6 +30,7 @@ import (
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/tool"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -74,6 +75,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
+		{"tool", "Run the docker tool identified by the arguments"},
 		{"top", "Lookup the running processes of a container"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
@@ -721,6 +723,28 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		return &utils.StatusError{StatusCode: status}
 	}
 	return nil
+}
+
+func (cli *DockerCli) CmdTool(args ...string) error {
+	cmd := cli.Subcmd("tool", "COMMAND [args...]", "Run the docker tool identified by the arguments")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() == 0 {
+		// TODO return a listing of the tool directory
+		//cmd.Usage()
+		tools, err := tool.Tools()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(cli.err, "From %s:\n", tool.DefaultDir)
+		for _, t := range tools {
+			fmt.Fprintln(cli.err, t)
+		}
+		return nil
+	}
+
+	return tool.Exec(cmd.Arg(0), cmd.Args()[1:])
 }
 
 func (cli *DockerCli) CmdTop(args ...string) error {
