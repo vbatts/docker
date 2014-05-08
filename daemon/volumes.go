@@ -174,6 +174,8 @@ func createVolumes(container *Container) error {
 		var srcPath string
 		var isBindMount bool
 		srcRW := false
+		utils.Debugf("SUCH VOLUMES: %q", container.Volumes)
+		utils.Debugf("SUCH BIND: %q", binds)
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
 			isBindMount = true
@@ -183,11 +185,6 @@ func createVolumes(container *Container) error {
 			}
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
-			}
-			if stat, err := os.Stat(bindMap.SrcPath); err != nil {
-				return err
-			} else {
-				volIsDir = stat.IsDir()
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
@@ -205,6 +202,13 @@ func createVolumes(container *Container) error {
 			}
 			srcRW = true // RW by default
 		}
+		if stat, err := os.Stat(srcPath); err != nil {
+			return err
+		} else {
+			utils.Debugf("SUCH SRC STAT: %#v", stat)
+			volIsDir = stat.IsDir()
+		}
+		utils.Debugf("SUCH SRC DIRECTORY: %q", volIsDir)
 
 		if p, err := filepath.EvalSymlinks(srcPath); err != nil {
 			return err
@@ -217,6 +221,13 @@ func createVolumes(container *Container) error {
 		if err != nil {
 			return err
 		}
+
+		if stat, err := os.Stat(rootVolPath); os.IsNotExist(err) {
+			volIsDir = false
+		} else if err != nil {
+			utils.Debugf("SUCH DEST STAT: %#v", stat)
+		}
+		utils.Debugf("SUCH DEST DIRECTORY: %q", volIsDir)
 
 		newVolPath, err := filepath.Rel(container.basefs, rootVolPath)
 		if err != nil {
@@ -240,6 +251,7 @@ func createVolumes(container *Container) error {
 		if srcRW && !isBindMount {
 			volList, err := ioutil.ReadDir(rootVolPath)
 			if err != nil {
+				utils.Debugf("SUCH FART: %q", rootVolPath)
 				return err
 			}
 			if len(volList) > 0 {
@@ -276,6 +288,7 @@ func createVolumes(container *Container) error {
 }
 
 func createIfNotExists(path string, isDir bool) error {
+	utils.Debugf("SUCH CREATE: %q, %q", path, isDir)
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			if isDir {
