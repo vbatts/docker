@@ -132,6 +132,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"resize":           srv.ContainerResize,
 		"commit":           srv.ContainerCommit,
 		"info":             srv.DockerInfo,
+		"introspect":       srv.DaemonIntrospect,
 		"container_delete": srv.ContainerDestroy,
 		"image_export":     srv.ImageExport,
 		"images":           srv.Images,
@@ -652,6 +653,18 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func init() {
+  filters.Register("images","dangling", filters.Filter{
+    Usage: "dangling=<true> - show only dangling images (no name/tag)",
+    Func: func(value string, item interface{}) bool {
+      img
+      // item here 
+      return true
+    },
+  }
+
+}
+
 func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
 		allImages   map[string]*image.Image
@@ -659,10 +672,12 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		filt_tagged = true
 	)
 
-	imageFilters, err := filters.FromParam(job.Getenv("filters"))
+	filterArgs, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
 		return job.Error(err)
 	}
+
+  imageFilters := filters.GetFilterSet("images").FromArgs(filterArgs)
 	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
 			if strings.ToLower(value) == "true" {
@@ -671,7 +686,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		}
 	}
 
-	if job.GetenvBool("all") && filt_tagged {
+	if job.GetenvBool("all") && imageFilters["dangling"] {
 		allImages, err = srv.daemon.Graph().Map()
 	} else {
 		allImages, err = srv.daemon.Graph().Heads()
@@ -783,6 +798,11 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
+	return engine.StatusOK
+}
+
+func (srv *Server) DaemonIntrospect(job *engine.Job) engine.Status {
+  // XXX get all the filter sets, for all the jobs. or specific filterSet for specific jobs
 	return engine.StatusOK
 }
 

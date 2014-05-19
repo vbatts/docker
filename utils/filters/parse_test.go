@@ -23,9 +23,11 @@ func TestParseArgs(t *testing.T) {
 		}
 	}
 	if len(args["created"]) != 1 {
+		t.Logf("args: %#v", args)
 		t.Errorf("failed to set this arg")
 	}
 	if len(args["image.name"]) != 2 {
+		t.Logf("args: %#v", args)
 		t.Errorf("the args should have collapsed")
 	}
 }
@@ -74,5 +76,31 @@ func TestEmpty(t *testing.T) {
 	}
 	if len(a) != len(v1) {
 		t.Errorf("these should both be empty sets")
+	}
+}
+
+func TestOperatorParse(t *testing.T) {
+	for _, filt := range []struct {
+		arg   string
+		items []string
+	}{
+		{"created=today", []string{"created", "=", "today"}},
+		{"exited!=0", []string{"exited", "!=", "0"}},
+		{"created>1d", []string{"created", ">", "1d"}},
+		{"baz>=bif", []string{"baz", ">=", "bif"}},
+		{"foo<=harfblat", []string{"foo", "<=", "harfblat"}},
+	} {
+		items, err := SplitByOperators(filt.arg)
+		if err != nil {
+			t.Errorf("failed to parse [%s]: %s", filt.arg, err)
+		}
+		if len(items) != len(filt.items) {
+			t.Errorf("expected %d items, got %d", len(filt.items), len(items))
+		}
+		for i := 0; i < 3; i++ {
+			if items[i] != filt.items[i] {
+				t.Errorf("expected %s items, got %s", filt.items[i], items[i])
+			}
+		}
 	}
 }
