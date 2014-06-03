@@ -1028,7 +1028,10 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.State.IsRunning() {
+		if len(filt_exited) > 0 {
+			if container.State.IsRunning() {
+				return nil
+			}
 			should_skip := true
 			for _, code := range filt_exited {
 				if code == container.State.GetExitCode() {
@@ -1037,7 +1040,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 				}
 			}
 			if should_skip {
-				continue
+				return nil
 			}
 		}
 		displayed++
