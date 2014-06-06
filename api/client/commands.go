@@ -1494,7 +1494,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
 	var flFilter opts.ListOpts
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'exited=0')")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
