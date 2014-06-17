@@ -149,6 +149,27 @@ func jsonPath(root string) string {
 	return path.Join(root, "json")
 }
 
+func (img *Image) JsonData() ([]byte, error) {
+	if img.graph == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
+	}
+	driver := img.graph.Driver()
+	rootfs, err := driver.Get(img.ID, "")
+	if err != nil {
+		return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", driver, img.ID, err)
+	}
+	defer driver.Put(img.ID)
+	fh, err := os.Open(jsonPath(rootfs))
+	if err != nil {
+		return nil, fmt.Errorf("Driver %s failed to open image json file %s: %s", driver, rootfs, err)
+	}
+	buf, err := ioutil.ReadAll(fh)
+	if err != nil {
+		return nil, fmt.Errorf("Driver %s failed to read image json file %s: %s", driver, rootfs, err)
+	}
+	return buf, nil
+}
+
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {
