@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -116,10 +118,12 @@ func (s *TagStore) pushRepository(r *registry.Registry, out io.Writer, localName
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, nTag))
 
 		for _, imgId := range imgList {
-			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
+			if imgExists, err := r.RemoteImageExists(imgId, ep, repoData.Tokens); err == nil && imgExists {
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
+			} else if err != nil {
+				return fmt.Errorf("Error gettting remote image status: %s", err)
 			} else {
-				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
+				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf, true); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
@@ -142,13 +146,36 @@ func (s *TagStore) pushRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (s *TagStore) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
+func (s *TagStore) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter, force bool) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
 	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pushing", nil))
+
+	// compare the freshness
+	localImg := image.Image{}
+	err = json.Unmarshal(jsonRaw, &localImg)
+	if err != nil {
+		return "", fmt.Errorf("Could not unmarshal imageID {%s}: %s", imgID, err)
+	}
+	remoteImg, err := r.GetRemoteImageStruct(imgID, ep, token)
+	if err != nil && err != registry.ErrNoRemoteImage {
+		return "", fmt.Errorf("Could not determine remote state of {%s}: %s", imgID, err)
+	}
+	utils.Debugf("SUCH localImg: %s; remoteImg: %s", localImg, remoteImg)
+	var remoteNewer bool
+	if remoteImg != nil {
+		utils.Debugf("localImg.Created: %s; remoteImg.Created: %s", localImg.Created, remoteImg.Created)
+		remoteNewer = remoteImg.Created.Before(localImg.Created)
+	}
+	utils.Debugf("Remote image freshness is %q and local is %q")
+	if force && remoteNewer {
+		utils.Debugf("Force pushing")
+	} else if remoteNewer {
+		return "", registry.ErrNewerRemoteImage
+	}
 
 	imgData := &registry.ImgData{
 		ID: imgID,
@@ -242,7 +269,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
+	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf, true); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK

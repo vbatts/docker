@@ -29,9 +29,12 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
+	"github.com/dotcloud/docker/image"
 )
 
 var (
+	ErrNewerRemoteImage      = errors.New("remote image is newer")
+	ErrNoRemoteImage         = errors.New("remote image does not exist")
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	errLoginRequired         = errors.New("Authentication is required.")
@@ -340,23 +343,30 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	return *history, nil
 }
 
-// Check if an image exists in the Registry
-// TODO: This method should return the errors instead of masking them and returning false
-func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
+func (r *Registry) GetRemoteImageStruct(imgID, registry string, token []string) (*image.Image, error) {
+	jsonBody, _, err := r.GetRemoteImageJSON(imgID, registry, token)
+	if err != nil {
+		return nil, err
+	}
 
-	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
+	img := &image.Image{}
+	err = json.Unmarshal(jsonBody, img)
 	if err != nil {
-		utils.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+		utils.Errorf("Error in GetRemoteImageStruct: %s", err)
+		return nil, err
 	}
-	setTokenAuth(req, token)
-	res, _, err := r.doRequest(req)
-	if err != nil {
-		utils.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+	return img, nil
+}
+
+// Check if an image exists in the Registry
+func (r *Registry) RemoteImageExists(imgID, registry string, token []string) (bool, error) {
+	jsonBody, _, err := r.GetRemoteImageJSON(imgID, registry, token)
+	if err != nil && err == ErrNoRemoteImage {
+		return false, nil
+	} else if err != nil {
+		return false, err
 	}
-	res.Body.Close()
-	return res.StatusCode == 200
+	return len(jsonBody) > 0, nil
 }
 
 // Retrieve an image from the Registry.
@@ -372,7 +382,9 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
+	if res.StatusCode == 404 {
+		return nil, -1, ErrNoRemoteImage
+	} else if res.StatusCode != 200 {
 		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
@@ -385,11 +397,11 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		}
 	}
 
-	jsonString, err := ioutil.ReadAll(res.Body)
+	jsonBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, -1, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonString)
+		return nil, -1, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonBody)
 	}
-	return jsonString, imageSize, nil
+	return jsonBody, imageSize, nil
 }
 
 func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
