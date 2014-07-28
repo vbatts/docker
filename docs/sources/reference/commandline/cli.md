@@ -814,7 +814,7 @@ Running `docker ps` showing 2 linked containers.
 
 ### Filtering
 
-The filtering flag (-f or --filter) format is of "key=value". If there are more
+The filtering flag (-f or --filter) format is a "key=value" pair. If there is more
 than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
