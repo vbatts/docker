@@ -1,0 +1,12 @@
+[docker.io]
+baseurl = https://hub.docker.com/
+priority = 10
+
+[redhat-registry]
+baseurl = ..
+priority = 9
+
+# docker run -ti redhat/rhel:7.0 bash
+## priority determines which registry resolves "redhat",
+## but accessing images by ID currently would need a valid
+## auth token that currently references the image name.
