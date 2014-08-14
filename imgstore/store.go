@@ -5,14 +5,14 @@ type Store interface {
 
 	Install(newimg *Image) (oldimg *Image, err error)
 	// remove the bits
-	Unlink(img *Image) (error)
+	Unlink(img *Image) error
 	Uninstall(repo string, tag string) (uninstalled View, err error)
 }
 
 type View interface {
 	ListRepos() ([]string, error)
 	ListTags(repo string) ([]string, error)
-	Get(repo, tag string) (current *Image, previous []*Image, error)
+	Get(repo, tag string) (current *Image, previous []*Image, err error)
 
 	// Would this do a pull?
 	ByHash(hash string) (*Image, error)

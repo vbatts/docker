@@ -9,7 +9,7 @@ type ImageOnDisk struct {
 	Image
 
 	// for sorting the pulled/loaded image
-	Installed time.Time
+	Installed      time.Time
 	PreviousHashes []string
 }
 
@@ -31,15 +31,15 @@ type Image struct {
 	// that level of trust for all images under that name, because Docker
 	// guarantees that they were published by the same entity.
 	Name struct {
-		Repository	string
-		Tag		string
+		Repository string
+		Tag        string
 
 		// shykes/myapp:v2	[hash 4242424242]
 		// previousTag: v1
 		//
 		// shykes/myapp:v1	[hash 4343434343]
 		// shykes/myapp:v1	[hash 4141414141]
-		PreviousTag	string
+		PreviousTag string
 		// have a Comparable? :-)
 		Version Version
 	}
@@ -76,22 +76,22 @@ type Image struct {
 	FSLayer LayerHash
 
 	/*
-	FS []struct {
-		Layer LayerHash
-		Op    LayerOp
-		Dst   string
-	}
+		FS []struct {
+			Layer LayerHash
+			Op    LayerOp
+			Dst   string
+		}
 	*/
-
 
 	OnBuild []string
 
 	/*
-	// ONBUILD?
-	Triggers map[TriggerType][]string
+		// ONBUILD?
+		Triggers map[TriggerType][]string
 	*/
 }
 
+// this is more of a constructor, than the fetching mechanism.
 func GetLayer(lh LayerHash) (Layer, error) {
 	// ...
 }
