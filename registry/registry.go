@@ -258,33 +258,6 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return hostname, reposName, nil
 }
 
-// this method expands the registry name as used in the prefix of a repo
-// to a full url. if it already is a url, there will be no change.
-// The registry is pinged to test if it http or https
-func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
-	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
-		// if there is no slash after https:// (8 characters) then we have no path in the url
-		if strings.LastIndex(hostname, "/") < 9 {
-			// there is no path given. Expand with default path
-			hostname = hostname + "/v1/"
-		}
-		if _, err := pingRegistryEndpoint(hostname); err != nil {
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-		return hostname, nil
-	}
-	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
-	if _, err := pingRegistryEndpoint(endpoint); err != nil {
-		log.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
-		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
-		if _, err = pingRegistryEndpoint(endpoint); err != nil {
-			//TODO: triggering highland build can be done there without "failing"
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-	}
-	return endpoint, nil
-}
-
 func trustedLocation(req *http.Request) bool {
 	var (
 		trusteds = []string{"docker.com", "docker.io"}
