@@ -394,6 +394,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 
 	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
+	// this tar will be compressed
 	tarsumLayer := &tarsum.TarSum{Reader: layer}
 	h := sha256.New()
 	h.Write(jsonRaw)

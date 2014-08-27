@@ -225,6 +225,24 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err2)
 	}
 
+	// XXX TESTING
+	// 1) Check if TarSum of each layer exists /v2/
+	//  1.a) if 200, continue
+	//  1.b) if 300, then push the
+	//  1.c) if anything else, err
+	// 2) PUT the created/signed manifest
+	if endpoint.Version == registry.APIVersion2 {
+		log.Debugf("SUCH WHOOP WHOOP")
+		// for each layer, check if it exists ...
+		// XXX wait this requires having the TarSum of the layer.tar first
+		// skip this step for now. Just push the layer every time for this naive implementation
+		//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
+		_ = img
+
+		// we should wrap up this CmdPush here
+		return engine.StatusOK
+	}
+
 	if err != nil {
 		reposLen := 1
 		if tag == "" {

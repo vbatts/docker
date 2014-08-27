@@ -2,11 +2,14 @@ package registry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -43,6 +46,16 @@ func NewEndpoint(hostname string) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	// XXX TESTING ONLY
+	if drv := os.Getenv("DOCKER_REGISTRY_VERSION"); len(drv) > 0 {
+		if v, err := strconv.Atoi(drv); err == nil {
+			endpoint.URL.Scheme = "http"
+			endpoint.Version = APIVersion(v)
+		} else {
+			log.Printf("SUCH WRONG VERSION: %d", drv)
+		}
+
+	}
 
 	// TODO find a way to do scheme determination, with preference for https
 	if len(endpoint.URL.Scheme) == 0 {
@@ -55,6 +68,8 @@ func NewEndpoint(hostname string) (*Endpoint, error) {
 
 	return &endpoint, nil
 }
+
+var ErrIncorrectAPIVersion = errors.New("API Version mismatch")
 
 func determineEndpointScheme(e Endpoint) string {
 	return DefaultScheme
