@@ -10,6 +10,7 @@ const (
 	DownloadBlobRouteName = "downloadBlob"
 	UploadBlobRouteName   = "uploadBlob"
 	MountBlobRouteName    = "mountBlob"
+	VersionRoutename      = "version"
 )
 
 func NewRegistryRouter() *mux.Router {
