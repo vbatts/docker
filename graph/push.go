@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +12,8 @@ import (
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -237,7 +241,68 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		// XXX wait this requires having the TarSum of the layer.tar first
 		// skip this step for now. Just push the layer every time for this naive implementation
 		//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
-		_ = img
+		var (
+			manifestData       map[string][]byte
+			imageName, tagName = parsers.ParseRepositoryTag(remoteName)
+		)
+		// XXX unfortunately this goes from child to parent,
+		// but the list of blobs in the manifest is expected to go parent to child
+		for currentImg := img; currentImg != nil; currentImg, err = currentImg.GetParent() {
+			arch, err := currentImg.TarLayer()
+			if err != nil {
+				return job.Error(err)
+			}
+			tsRdr := &tarsum.TarSum{Reader: arch, DisableCompression: false}
+			log.Debugf("SUCH PUSH ID %s", currentImg.ID)
+			serverChecksum, err := r.PostV2ImageBlob(imageName, "tarsum+sha256", tsRdr, nil)
+			if err != nil {
+				return job.Error(err)
+			}
+			localChecksum := tsRdr.Sum(nil)
+			if serverChecksum != localChecksum {
+				return job.Error(fmt.Errorf("%q: failed checksum comparison. serverChecksum: %q, localChecksum: %q", imageName, serverChecksum, localChecksum))
+			}
+			manifestData[localChecksum], err = currentImg.RawJson()
+			if err != nil {
+				return job.Error(err)
+			}
+
+			currentImg, err = currentImg.GetParent()
+			if err != nil {
+				return job.Error(err)
+			}
+		}
+
+		// Next, produce the merged/flattened "image json"
+		// ...
+
+		// Next, produce the manifest
+		blobSums := []string{}
+		for k := range manifestData {
+			blobSums = append(blobSums, k)
+		}
+		manifest := struct {
+			Name     string
+			BlobSums []string
+			History  []map[string][]byte
+		}{
+			Name:     remoteName,
+			BlobSums: blobSums,
+			History: []map[string][]byte{
+				manifestData,
+			},
+		}
+		manifestBuf, err := json.Marshal(manifest)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		// Next, push the manifest
+		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tagName, manifestBuf)
+		err = r.PutV2ImageManifest(localName, tagName, bytes.NewReader(manifestBuf), nil)
+		if err != nil {
+			return job.Error(err)
+		}
 
 		// we should wrap up this CmdPush here
 		return engine.StatusOK
