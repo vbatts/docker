@@ -38,6 +38,9 @@ func getManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Manifest should be a JSON Web Signature
+	w.Header().Set("Content-Type", "application/json")
+
 	bytesCopied, err := io.Copy(w, manifestFile)
 	if err != nil {
 		log.Printf("unable to copy manifest file %q: %s\n", manifestPath, err)
