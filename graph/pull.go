@@ -84,26 +84,15 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		manifest := map[string]interface{}{}
+		var manifest registry.ManifestData
 		err = json.Unmarshal(manifestBytes, &manifest)
 		if err != nil {
 			return job.Error(err)
 		}
-		log.Debugf("%#v", manifest["history"])
-		h, ok := manifest["history"].(map[string]interface{})
-		if !ok {
-			return job.Error(fmt.Errorf("manifest 'history' is not a map[string]string"))
-		}
-		log.Debugf("%#v", manifest["tarsum"])
-		sums, ok := manifest["tarsum"].([]interface{})
-		if !ok {
-			return job.Error(fmt.Errorf("manifest 'tarsum' is not a []string"))
-		}
-		for _, sumInterface := range sums {
-			sumStr := sumInterface.(string)
-			jsonBytes := h[sumStr]
-			//
-			_ = jsonBytes.(string)
+		for _, sumStr := range manifest.BlobSums {
+			//jsonBytes := manifest.History[sumStr]
+			////
+			//_ = jsonBytes.(string)
 			chunks := strings.SplitN(sumStr, ":", 2)
 			if len(chunks) < 2 {
 				return job.Error(fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks))
@@ -119,7 +108,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			fmt.Println(tmpFile)
 		}
 
-		log.Debugf("%#v", manifest["history"])
+		log.Debugf("%#v", manifest.History)
 
 		return engine.StatusOK // return from this pull, so we don't do a v1 pull
 	}
