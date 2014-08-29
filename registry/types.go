@@ -32,6 +32,14 @@ type RegistryInfo struct {
 	Standalone bool   `json:"standalone"`
 }
 
+type ManifestData struct {
+	Name         string            `json:"name"`
+	Tag          string            `json:"tag"`
+	Architecture string            `json:"architecture"`
+	BlobSums     []string          `json:"blobSums"`
+	History      map[string]string `json:"history"`
+}
+
 type APIVersion int
 
 func (av APIVersion) String() string {

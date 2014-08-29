@@ -29,9 +29,9 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	manifest := map[string]interface{}{
-		"name": remoteName,
-		"tag":  tag,
+	manifest := &registry.ManifestData{
+		Name: remoteName,
+		Tag:  tag,
 	}
 	localRepo, exists := s.Repositories[name]
 	if !exists {
@@ -46,7 +46,7 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 	layersSeen := make(map[string]bool)
 
 	layer, err := s.graph.Get(layerId)
-	manifest["architecture"] = layer.Architecture
+	manifest.Architecture = layer.Architecture
 	var metadata runconfig.Config
 	metadata = *layer.Config
 	history := make(map[string]string)
@@ -86,9 +86,8 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		history[tarId] = string(jsonData)
 	}
 
-	manifest["tarsum"] = tarsums
-	manifest["metadata"] = &metadata
-	manifest["history"] = history
+	manifest.BlobSums = tarsums
+	manifest.History = history
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "   ")
 	if err != nil {
