@@ -31,6 +31,9 @@ func getV2URL(e *Endpoint, routeName string, vars map[string]string) (*url.URL, 
 		return nil, fmt.Errorf("unable to make registry route %q with vars %v: %s", routeName, vars, err)
 	}
 
+	fmt.Println(e.URL.Scheme)
+	fmt.Println(e.URL.Host)
+
 	return &url.URL{
 		Scheme: e.URL.Scheme,
 		Host:   e.URL.Host,
@@ -251,7 +254,7 @@ func (r *Session) PutV2ImageManifest(imageName, tagName string, manifestRdr io.R
 		return err
 	}
 	res.Body.Close()
-	if res.StatusCode != 200 {
+	if res.StatusCode != 201 {
 		if res.StatusCode == 401 {
 			return errLoginRequired
 		}

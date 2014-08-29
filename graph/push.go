@@ -228,6 +228,9 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err2)
 	}
 
+	if len(tag) == 0 {
+		tag = DEFAULTTAG
+	}
 	// XXX TESTING
 	// 1) Check if TarSum of each layer exists /v2/
 	//  1.a) if 200, continue
@@ -240,7 +243,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		// XXX wait this requires having the TarSum of the layer.tar first
 		// skip this step for now. Just push the layer every time for this naive implementation
 		//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
-		var manifestData map[string][]byte
+		var manifestData = make(map[string][]byte)
 
 		// XXX unfortunately this goes from child to parent,
 		// but the list of blobs in the manifest is expected to go parent to child
@@ -267,6 +270,8 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 			localChecksum := tsRdr.Sum(nil)
 			if serverChecksum != localChecksum {
 				return job.Error(fmt.Errorf("%q: failed checksum comparison. serverChecksum: %q, localChecksum: %q", remoteName, serverChecksum, localChecksum))
+			} else {
+				log.Debugf("imgID: %q, serverChecksum: %q, localChecksum: %q", img.ID, serverChecksum, localChecksum)
 			}
 
 			// So dumb. This should be a call to the image.Image RawJson()
@@ -302,7 +307,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 
 		// Next, push the manifest
 		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tag, manifestBuf)
-		err = r.PutV2ImageManifest(localName, tag, bytes.NewReader(manifestBuf), nil)
+		err = r.PutV2ImageManifest(remoteName, tag, bytes.NewReader(manifestBuf), nil)
 		if err != nil {
 			return job.Error(err)
 		}

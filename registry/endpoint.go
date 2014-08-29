@@ -41,11 +41,15 @@ func NewEndpoint(hostname string) (*Endpoint, error) {
 		trimmedHostname string
 		err             error
 	)
+	if !strings.HasPrefix(hostname, "http") {
+		hostname = "https://" + hostname
+	}
 	trimmedHostname, endpoint.Version = scanForApiVersion(hostname)
 	endpoint.URL, err = url.Parse(trimmedHostname)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%#v\n", endpoint.URL)
 	// XXX TESTING ONLY
 	if drv := os.Getenv("DOCKER_REGISTRY_VERSION"); len(drv) > 0 {
 		if v, err := strconv.Atoi(drv); err == nil {
