@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -241,35 +240,39 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		// XXX wait this requires having the TarSum of the layer.tar first
 		// skip this step for now. Just push the layer every time for this naive implementation
 		//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
-		var (
-			manifestData       map[string][]byte
-			imageName, tagName = parsers.ParseRepositoryTag(remoteName)
-		)
+		var manifestData map[string][]byte
+
 		// XXX unfortunately this goes from child to parent,
 		// but the list of blobs in the manifest is expected to go parent to child
-		for currentImg := img; currentImg != nil; currentImg, err = currentImg.GetParent() {
-			arch, err := currentImg.TarLayer()
+		localRepo := s.Repositories[localName]
+		imgList, tagsByImage, err := s.getImageList(localRepo, tag)
+		_ = tagsByImage // not yet ...
+		for _, imgID := range imgList {
+			img, err = s.graph.Get(imgID)
+			if err != nil {
+				return job.Error(err)
+			}
+			log.Debugf("SUCH IMAGE %#v", img)
+
+			arch, err := img.TarLayer()
 			if err != nil {
 				return job.Error(err)
 			}
 			tsRdr := &tarsum.TarSum{Reader: arch, DisableCompression: false}
-			log.Debugf("SUCH PUSH ID %s", currentImg.ID)
-			serverChecksum, err := r.PostV2ImageBlob(imageName, "tarsum+sha256", tsRdr, nil)
+			log.Debugf("SUCH PUSH ID %s", img.ID)
+			serverChecksum, err := r.PutV2ImageBlob(remoteName, "tarsum+sha256", tsRdr, nil)
 			if err != nil {
 				return job.Error(err)
 			}
 			localChecksum := tsRdr.Sum(nil)
 			if serverChecksum != localChecksum {
-				return job.Error(fmt.Errorf("%q: failed checksum comparison. serverChecksum: %q, localChecksum: %q", imageName, serverChecksum, localChecksum))
-			}
-			manifestData[localChecksum], err = currentImg.RawJson()
-			if err != nil {
-				return job.Error(err)
+				return job.Error(fmt.Errorf("%q: failed checksum comparison. serverChecksum: %q, localChecksum: %q", remoteName, serverChecksum, localChecksum))
 			}
 
-			currentImg, err = currentImg.GetParent()
+			// So dumb. This should be a call to the image.Image RawJson()
+			manifestData[localChecksum], err = ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
 			if err != nil {
-				return job.Error(err)
+				return job.Error(fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err))
 			}
 		}
 
@@ -298,8 +301,8 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		}
 
 		// Next, push the manifest
-		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tagName, manifestBuf)
-		err = r.PutV2ImageManifest(localName, tagName, bytes.NewReader(manifestBuf), nil)
+		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tag, manifestBuf)
+		err = r.PutV2ImageManifest(localName, tag, bytes.NewReader(manifestBuf), nil)
 		if err != nil {
 			return job.Error(err)
 		}
