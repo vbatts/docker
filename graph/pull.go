@@ -66,6 +66,20 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		localName = remoteName
 	}
 
+	// XXX
+	// 1) get the image Manifest
+	// 1.a) validate the signature and payload of the manifest
+	// 2) then pull the blobs from the manifest
+	// 2.a) for docker-v1 compat, the map[sum]jsonBytes will need to be unpacked to determine the
+	//      image ID and path to store the tar and json in
+	if len(tag) == 0 {
+		tag = DEFAULTTAG
+	}
+	if endpoint.Version == registry.APIVersion2 {
+		log.Debugf("SUCH WHOOP WHOOP")
+		return engine.StatusOK // return from this pull, so we don't do a v1 pull
+	}
+
 	if err = s.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
 		return job.Error(err)
 	}

@@ -239,7 +239,6 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	//  1.c) if anything else, err
 	// 2) PUT the created/signed manifest
 	if endpoint.Version == registry.APIVersion2 {
-		log.Debugf("SUCH WHOOP WHOOP")
 		// for each layer, check if it exists ...
 		// XXX wait this requires having the TarSum of the layer.tar first
 		// skip this step for now. Just push the layer every time for this naive implementation
