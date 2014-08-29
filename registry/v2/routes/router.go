@@ -16,22 +16,25 @@ const (
 func NewRegistryRouter() *mux.Router {
 	router := mux.NewRouter()
 
-	v2Route := router.PathPrefix("/v2/").Subrouter()
+	v2Router := router.PathPrefix("/v2/").Subrouter()
+
+	// Version Info
+	v2Router.Path("/version").Name(VersionRoutename)
 
 	// Image Manifests
-	v2Route.Path("/manifest/{imagename:[a-z0-9-._/]+}/{tagname:[a-zA-Z0-9-._]+}").Name(ManifestsRouteName)
+	v2Router.Path("/manifest/{imagename:[a-z0-9-._/]+}/{tagname:[a-zA-Z0-9-._]+}").Name(ManifestsRouteName)
 
 	// List Image Tags
-	v2Route.Path("/tags/{imagename:[a-z0-9-._/]+}").Name(TagsRouteName)
+	v2Router.Path("/tags/{imagename:[a-z0-9-._/]+}").Name(TagsRouteName)
 
 	// Download a blob
-	v2Route.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name(DownloadBlobRouteName)
+	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name(DownloadBlobRouteName)
 
 	// Upload a blob
-	v2Route.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}").Name(UploadBlobRouteName)
+	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}").Name(UploadBlobRouteName)
 
 	// Mounting a blob in an image
-	v2Route.Path("/mountblob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name(MountBlobRouteName)
+	v2Router.Path("/mountblob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name(MountBlobRouteName)
 
 	return router
 }

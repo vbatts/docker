@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
-	"strings"
 
 	"github.com/docker/docker/registry/v2/routes"
 	"github.com/docker/docker/utils"
@@ -67,12 +66,16 @@ func (r *Session) GetV2Version(token []string) (*RegistryInfo, error) {
 	if res.StatusCode != 200 {
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d fetching Version", res.StatusCode), res)
 	}
-	buf, err := ioutil.ReadAll(res.Body)
+
+	decoder := json.NewDecoder(res.Body)
+	versionInfo := new(RegistryInfo)
+
+	err = decoder.Decode(versionInfo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to decode GetV2Version JSON response: %s", err)
 	}
 
-	return &RegistryInfo{Version: strings.TrimSpace(string(buf))}, nil
+	return versionInfo, nil
 }
 
 //
@@ -197,7 +200,7 @@ func (r *Session) PutV2ImageBlob(imageName, sumType string, blobRdr io.Reader, t
 		return "", err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
+	if res.StatusCode != 201 {
 		if res.StatusCode == 401 {
 			return "", errLoginRequired
 		}
