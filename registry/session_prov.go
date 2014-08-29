@@ -16,7 +16,7 @@ import (
 // APIVersion2 /v2/
 var v2HTTPRoutes = routes.NewRegistryRouter()
 
-func getV2URL(e Endpoint, routeName string, vars map[string]string) (*url.URL, error) {
+func getV2URL(e *Endpoint, routeName string, vars map[string]string) (*url.URL, error) {
 	route := v2HTTPRoutes.Get(routeName)
 	if route == nil {
 		return nil, fmt.Errorf("unknown regisry v2 route name: %q", routeName)
@@ -36,7 +36,7 @@ func getV2URL(e Endpoint, routeName string, vars map[string]string) (*url.URL, e
 		Scheme: e.URL.Scheme,
 		Host:   e.URL.Host,
 		Path:   routePath.Path,
-	}
+	}, nil
 }
 
 // V2 Provenance POC
@@ -52,7 +52,6 @@ func (r *Session) GetV2Version(token []string) (*RegistryInfo, error) {
 	}
 
 	method := "GET"
-	hr := v2HTTPRoutes[method]["Version"]
 	log.Printf("[registry] Calling %q %s", method, routeURL.String())
 
 	req, err := r.reqFactory.NewRequest(method, routeURL.String(), nil)
@@ -141,7 +140,7 @@ func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, token []s
 
 	routeURL, err := getV2URL(r.indexEndpoint, routes.MountBlobRouteName, vars)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	method := "POST"
@@ -183,7 +182,7 @@ func (r *Session) PutV2ImageBlob(imageName, sumType string, blobRdr io.Reader, t
 
 	routeURL, err := getV2URL(r.indexEndpoint, routes.UploadBlobRouteName, vars)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	method := "PUT"
@@ -234,7 +233,7 @@ func (r *Session) PutV2ImageManifest(imageName, tagName string, manifestRdr io.R
 
 	routeURL, err := getV2URL(r.indexEndpoint, routes.ManifestsRouteName, vars)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	method := "PUT"
