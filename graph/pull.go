@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -77,6 +78,34 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	}
 	if endpoint.Version == registry.APIVersion2 {
 		log.Debugf("SUCH WHOOP WHOOP")
+
+		manifestBytes, err := r.GetV2ImageManifest(remoteName, tag, nil)
+		if err != nil {
+			return job.Error(err)
+		}
+		manifest := map[string]interface{}{}
+		err = json.Unmarshal(manifestBytes, &manifest)
+		if err != nil {
+			return job.Error(err)
+		}
+		log.Debugf("%#v", manifest["history"])
+		h, ok := manifest["history"].(map[string]interface{})
+		if !ok {
+			return job.Error(fmt.Errorf("manifest 'history' is not a map[string]string"))
+		}
+		log.Debugf("%#v", manifest["tarsum"])
+		sums, ok := manifest["tarsum"].([]interface{})
+		if !ok {
+			return job.Error(fmt.Errorf("manifest 'tarsum' is not a []string"))
+		}
+		for _, sumInterface := range sums {
+			jsonBytes := h[sumInterface.(string)]
+			//
+			_ = jsonBytes.(string)
+		}
+
+		log.Debugf("%#v", manifest["history"])
+
 		return engine.StatusOK // return from this pull, so we don't do a v1 pull
 	}
 

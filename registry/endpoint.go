@@ -49,7 +49,6 @@ func NewEndpoint(hostname string) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%#v\n", endpoint.URL)
 	// XXX TESTING ONLY
 	if drv := os.Getenv("DOCKER_REGISTRY_VERSION"); len(drv) > 0 {
 		if v, err := strconv.Atoi(drv); err == nil {
