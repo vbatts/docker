@@ -2,7 +2,6 @@ package graph
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -64,7 +63,7 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	return imageList, tagsByImage, nil
 }
 
-func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
+func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName, remoteName, manifest string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	log.Debugf("Local repo: %s", localRepo)
 	imgList, tagsByImage, err := s.getImageList(localRepo, tag)
@@ -123,7 +122,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			} else {
-				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
+				if _, err := s.pushImage(r, out, remoteName, imgId, ep, manifest, repoData.Tokens, sf); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
@@ -146,7 +145,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 	return nil
 }
 
-func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
+func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, ep, manifest string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
@@ -157,6 +156,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, 
 	imgData := &registry.ImgData{
 		ID: imgID,
 	}
+	log.Debugf("Pushing images %s to %s\n%s", imgID, remote, manifest)
 
 	// Send the json
 	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep, token); err != nil {
@@ -204,6 +204,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	)
 
 	tag := job.Getenv("tag")
+	manifest := job.Getenv("manifest")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 	if _, err := s.poolAdd("push", localName); err != nil {
@@ -243,7 +244,6 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		// XXX wait this requires having the TarSum of the layer.tar first
 		// skip this step for now. Just push the layer every time for this naive implementation
 		//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
-		var manifestData = make(map[string][]byte)
 
 		// XXX unfortunately this goes from child to parent,
 		// but the list of blobs in the manifest is expected to go parent to child
@@ -274,40 +274,14 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 				log.Debugf("imgID: %q, serverChecksum: %q, localChecksum: %q", img.ID, serverChecksum, localChecksum)
 			}
 
-			// So dumb. This should be a call to the image.Image RawJson()
-			manifestData[localChecksum], err = ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
-			if err != nil {
-				return job.Error(fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err))
-			}
 		}
 
 		// Next, produce the merged/flattened "image json"
 		// ...
 
-		// Next, produce the manifest
-		blobSums := []string{}
-		for k := range manifestData {
-			blobSums = append(blobSums, k)
-		}
-		manifest := struct {
-			Name     string
-			BlobSums []string
-			History  []map[string][]byte
-		}{
-			Name:     remoteName,
-			BlobSums: blobSums,
-			History: []map[string][]byte{
-				manifestData,
-			},
-		}
-		manifestBuf, err := json.Marshal(manifest)
-		if err != nil {
-			return job.Error(err)
-		}
-
 		// Next, push the manifest
-		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tag, manifestBuf)
-		err = r.PutV2ImageManifest(remoteName, tag, bytes.NewReader(manifestBuf), nil)
+		log.Debugf("SUCH MANIFEST %s:%s -- %s", localName, tag, manifest)
+		err = r.PutV2ImageManifest(remoteName, tag, bytes.NewReader([]byte(manifest)), nil)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -324,7 +298,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := s.Repositories[localName]; exists {
-			if err := s.pushRepository(r, job.Stdout, localName, remoteName, localRepo, tag, sf); err != nil {
+			if err := s.pushRepository(r, job.Stdout, localName, remoteName, manifest, localRepo, tag, sf); err != nil {
 				return job.Error(err)
 			}
 			return engine.StatusOK
@@ -334,7 +308,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint.String(), token, sf); err != nil {
+	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint.String(), manifest, token, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK

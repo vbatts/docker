@@ -28,13 +28,15 @@ var (
 	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, false, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
-	flCa    *string
-	flCert  *string
-	flKey   *string
-	flHosts []string
+	flTrustKey *string
+	flCa       *string
+	flCert     *string
+	flKey      *string
+	flHosts    []string
 )
 
 func init() {
+	flTrustKey = flag.String([]string{"i", "-identity"}, filepath.Join(dockerCertPath, defaultTrustKeyFile), "Path to libtrust key file")
 	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
 	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
