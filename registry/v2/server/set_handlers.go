@@ -9,6 +9,9 @@ import (
 
 func setRegistryRouteHandlers(registryRouter *mux.Router) {
 	routeHandlers := map[string]map[string]http.Handler{
+		routes.VersionRoutename: {
+			"GET": http.HandlerFunc(getVersion),
+		},
 		routes.ManifestsRouteName: {
 			"GET":    http.HandlerFunc(getManifest),
 			"PUT":    http.HandlerFunc(putManifest),
