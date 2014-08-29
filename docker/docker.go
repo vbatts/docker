@@ -15,12 +15,14 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
 
 const (
-	defaultCaFile   = "ca.pem"
-	defaultKeyFile  = "key.pem"
-	defaultCertFile = "cert.pem"
+	defaultCaFile       = "ca.pem"
+	defaultKeyFile      = "key.pem"
+	defaultCertFile     = "cert.pem"
+	defaultTrustKeyFile = "key.json"
 )
 
 func main() {
@@ -60,6 +62,17 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
+	trustKey, keyErr := libtrust.LoadKeyFile(*flTrustKey)
+	if keyErr == libtrust.ErrKeyFileDoesNotExist {
+		trustKey, keyErr = libtrust.GenerateECP256PrivateKey()
+		if keyErr == nil {
+			keyErr = libtrust.SaveKey(*flTrustKey, trustKey)
+		}
+	}
+	if keyErr != nil {
+		log.Fatal(keyErr)
+	}
+
 	var (
 		cli       *client.DockerCli
 		tlsConfig tls.Config
@@ -94,9 +107,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
