@@ -170,6 +170,45 @@ func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, token []s
 	return false, fmt.Errorf("Failed to mount %q - %s:%s : %d", imageName, sumType, sum, res.StatusCode)
 }
 
+func (r *Session) GetV2ImageBlob(imageName, sumType, sum string, blobWrtr io.Writer, token []string) error {
+	if r.indexEndpoint.Version != APIVersion2 {
+		return ErrIncorrectAPIVersion
+	}
+
+	vars := map[string]string{
+		"imagename": imageName,
+		"sumtype":   sumType,
+		"sum":       sum,
+	}
+
+	routeURL, err := getV2URL(r.indexEndpoint, routes.DownloadBlobRouteName, vars)
+	if err != nil {
+		return err
+	}
+
+	method := "GET"
+	log.Printf("[registry] Calling %q %s", method, routeURL.String())
+	req, err := r.reqFactory.NewRequest(method, routeURL.String(), nil)
+	if err != nil {
+		return err
+	}
+	setTokenAuth(req, token)
+	res, _, err := r.doRequest(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 201 {
+		if res.StatusCode == 401 {
+			return errLoginRequired
+		}
+		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob", res.StatusCode, imageName), res)
+	}
+
+	_, err = io.Copy(blobWrtr, res.Body)
+	return err
+}
+
 // Push the image to the server for storage.
 // 'layer' is an uncompressed reader of the blob to be pushed.
 // The server will generate it's own checksum calculation.
