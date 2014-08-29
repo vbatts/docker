@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"strings"
@@ -99,9 +100,23 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			return job.Error(fmt.Errorf("manifest 'tarsum' is not a []string"))
 		}
 		for _, sumInterface := range sums {
-			jsonBytes := h[sumInterface.(string)]
+			sumStr := sumInterface.(string)
+			jsonBytes := h[sumStr]
 			//
 			_ = jsonBytes.(string)
+			chunks := strings.SplitN(sumStr, ":", 2)
+			if len(chunks) < 2 {
+				return job.Error(fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks))
+			}
+
+			tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
+			if err != nil {
+				job.Error(err)
+			}
+			if err = r.GetV2ImageBlob(remoteName, chunks[0], chunks[1], tmpFile, nil); err != nil {
+				job.Error(err)
+			}
+			fmt.Println(tmpFile)
 		}
 
 		log.Debugf("%#v", manifest["history"])
