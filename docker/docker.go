@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/docker/docker/api"
@@ -62,6 +63,12 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
+	if _, err := os.Stat(path.Dir(*flTrustKey)); os.IsNotExist(err) {
+		err = os.MkdirAll(path.Dir(*flTrustKey), 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	trustKey, keyErr := libtrust.LoadKeyFile(*flTrustKey)
 	if keyErr == libtrust.ErrKeyFileDoesNotExist {
 		trustKey, keyErr = libtrust.GenerateECP256PrivateKey()
