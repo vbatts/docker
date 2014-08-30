@@ -89,26 +89,47 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		for _, sumStr := range manifest.BlobSums {
-			//jsonBytes := manifest.History[sumStr]
-			////
-			//_ = jsonBytes.(string)
+
+		if len(manifest.BlobSums) != len(manifest.History) {
+			return job.Errorf("length of history not equal to number of layers")
+		}
+
+		for i := len(manifest.BlobSums) - 1; i >= 0; i-- {
+			sumStr := manifest.BlobSums[i]
+			imgJSON := []byte(manifest.History[i])
+
+			img, err := image.NewImgJSON(imgJSON)
+			if err != nil {
+				return job.Error(fmt.Errorf("failed to parse json: %s", err))
+			}
+
 			chunks := strings.SplitN(sumStr, ":", 2)
 			if len(chunks) < 2 {
 				return job.Error(fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks))
 			}
+			sumType, checksum := chunks[0], chunks[1]
+
+			log.Infof("pulling blob %q to V1 img %s", sumStr, img.ID)
 
 			tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
 			if err != nil {
-				job.Error(err)
+				return job.Error(err)
 			}
-			if err = r.GetV2ImageBlob(remoteName, chunks[0], chunks[1], tmpFile, nil); err != nil {
-				job.Error(err)
+			if err = r.GetV2ImageBlob(remoteName, sumType, checksum, tmpFile, nil); err != nil {
+				return job.Error(err)
 			}
 			fmt.Println(tmpFile)
-		}
+			tmpFile.Seek(0, 0)
 
-		log.Debugf("%#v", manifest.History)
+			err = s.graph.Register([]byte(imgJSON), tmpFile, img)
+			if err != nil {
+				return job.Error(err)
+			}
+
+			if err = s.Set(localName, tag, img.ID, true); err != nil {
+				return job.Error(err)
+			}
+		}
 
 		return engine.StatusOK // return from this pull, so we don't do a v1 pull
 	}
@@ -296,6 +317,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					continue
 				}
 				img, err = image.NewImgJSON(imgJSON)
+				// _RETURN HERE after getting image fom json
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 					return fmt.Errorf("Failed to parse json: %s", err)

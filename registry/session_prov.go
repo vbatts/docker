@@ -198,11 +198,11 @@ func (r *Session) GetV2ImageBlob(imageName, sumType, sum string, blobWrtr io.Wri
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 201 {
+	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
 			return errLoginRequired
 		}
-		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob", res.StatusCode, imageName), res)
+		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob", res.StatusCode, imageName), res)
 	}
 
 	_, err = io.Copy(blobWrtr, res.Body)

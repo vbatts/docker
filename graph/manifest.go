@@ -46,10 +46,13 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 	layersSeen := make(map[string]bool)
 
 	layer, err := s.graph.Get(layerId)
+	if err != nil {
+		return job.Error(err)
+	}
 	manifest.Architecture = layer.Architecture
 	var metadata runconfig.Config
 	metadata = *layer.Config
-	history := make(map[string]string)
+	history := make([]string, 0, cap(tarsums))
 
 	for ; layer != nil; layer, err = layer.GetParent() {
 		if err != nil {
@@ -83,7 +86,7 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err))
 		}
-		history[tarId] = string(jsonData)
+		history = append(history, string(jsonData))
 	}
 
 	manifest.BlobSums = tarsums

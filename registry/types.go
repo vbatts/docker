@@ -33,11 +33,11 @@ type RegistryInfo struct {
 }
 
 type ManifestData struct {
-	Name         string            `json:"name"`
-	Tag          string            `json:"tag"`
-	Architecture string            `json:"architecture"`
-	BlobSums     []string          `json:"blobSums"`
-	History      map[string]string `json:"history"`
+	Name         string   `json:"name"`
+	Tag          string   `json:"tag"`
+	Architecture string   `json:"architecture"`
+	BlobSums     []string `json:"blobSums"`
+	History      []string `json:"history"`
 }
 
 type APIVersion int
