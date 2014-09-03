@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
@@ -85,11 +86,20 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		var manifest registry.ManifestData
-		err = json.Unmarshal(manifestBytes, &manifest)
+
+		sig, err := libtrust.ParsePrettySignature(manifestBytes, "buildSignatures")
 		if err != nil {
-			return job.Error(err)
+			return job.Errorf("error parsing signature: %s", err)
+		}
+		_, err = sig.Verify()
+		if err != nil {
+			return job.Errorf("error verifying signature: %s", err)
 		}
 
+		err = json.Unmarshal(manifestBytes, &manifest)
+		if err != nil {
+			return job.Errorf("error unmarshalling manifest: %s", err)
+		}
 		if len(manifest.BlobSums) != len(manifest.History) {
 			return job.Errorf("length of history not equal to number of layers")
 		}
