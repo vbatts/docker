@@ -1169,7 +1169,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return err
 	}
 
-	signedBody, err := js.PrettySignature("buildSignatures")
+	signedBody, err := js.PrettySignature("signatures")
 	if err != nil {
 		return err
 	}

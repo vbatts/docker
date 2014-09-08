@@ -18,6 +18,30 @@ import (
 	"github.com/docker/libtrust"
 )
 
+func (s *TagStore) verifyManifest(manifestBytes []byte) (*registry.ManifestData, error) {
+	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
+	if err != nil {
+		return nil, fmt.Errorf("error parsing payload: %s", err)
+	}
+	_, err = sig.Verify()
+	if err != nil {
+		return nil, fmt.Errorf("error verifying payload: %s", err)
+	}
+
+	payload, err := sig.Payload()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	var manifest registry.ManifestData
+	err = json.Unmarshal(payload, &manifest)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling manifest: %s", err)
+	}
+
+	return &manifest, nil
+}
+
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
 		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
@@ -85,21 +109,12 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		var manifest registry.ManifestData
 
-		sig, err := libtrust.ParsePrettySignature(manifestBytes, "buildSignatures")
+		manifest, err := s.verifyManifest(manifestBytes)
 		if err != nil {
-			return job.Errorf("error parsing signature: %s", err)
-		}
-		_, err = sig.Verify()
-		if err != nil {
-			return job.Errorf("error verifying signature: %s", err)
+			return job.Errorf("error verifying manifest: %s", err)
 		}
 
-		err = json.Unmarshal(manifestBytes, &manifest)
-		if err != nil {
-			return job.Errorf("error unmarshalling manifest: %s", err)
-		}
 		if len(manifest.BlobSums) != len(manifest.History) {
 			return job.Errorf("length of history not equal to number of layers")
 		}
