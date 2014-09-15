@@ -101,6 +101,55 @@ func TestCommitNewFile(t *testing.T) {
 	logDone("commit - commit file and read")
 }
 
+func TestCommitHardlink(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
+	firstOuput, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chunks := strings.Split(strings.TrimSpace(firstOuput), " ")
+	inode := chunks[0]
+	found := false
+	for _, chunk := range chunks[1:] {
+		if chunk == inode {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
+	}
+
+	cmd = exec.Command(dockerBinary, "commit", "hardlinks", "hardlinks")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(imageId, err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+
+	cmd = exec.Command(dockerBinary, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
+	secondOuput, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chunks = strings.Split(strings.TrimSpace(secondOuput), " ")
+	inode = chunks[0]
+	found = false
+	for _, chunk := range chunks[1:] {
+		if chunk == inode {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
+	}
+
+	logDone("commit - commit hardlinks")
+}
+
 func TestCommitTTY(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 	if _, err := runCommand(cmd); err != nil {
