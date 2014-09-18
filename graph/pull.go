@@ -15,7 +15,32 @@ import (
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
+
+func (s *TagStore) verifyManifest(manifestBytes []byte) (*registry.ManifestData, error) {
+	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
+	if err != nil {
+		return nil, fmt.Errorf("error parsing payload: %s", err)
+	}
+	_, err = sig.Verify()
+	if err != nil {
+		return nil, fmt.Errorf("error verifying payload: %s", err)
+	}
+
+	payload, err := sig.Payload()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	var manifest registry.ManifestData
+	err = json.Unmarshal(payload, &manifest)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling manifest: %s", err)
+	}
+
+	return &manifest, nil
+}
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
@@ -84,42 +109,52 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		manifest := map[string]interface{}{}
-		err = json.Unmarshal(manifestBytes, &manifest)
+
+		manifest, err := s.verifyManifest(manifestBytes)
 		if err != nil {
-			return job.Error(err)
+			return job.Errorf("error verifying manifest: %s", err)
 		}
-		log.Debugf("%#v", manifest["history"])
-		h, ok := manifest["history"].(map[string]interface{})
-		if !ok {
-			return job.Error(fmt.Errorf("manifest 'history' is not a map[string]string"))
+
+		if len(manifest.BlobSums) != len(manifest.History) {
+			return job.Errorf("length of history not equal to number of layers")
 		}
-		log.Debugf("%#v", manifest["tarsum"])
-		sums, ok := manifest["tarsum"].([]interface{})
-		if !ok {
-			return job.Error(fmt.Errorf("manifest 'tarsum' is not a []string"))
-		}
-		for _, sumInterface := range sums {
-			sumStr := sumInterface.(string)
-			jsonBytes := h[sumStr]
-			//
-			_ = jsonBytes.(string)
+
+		for i := len(manifest.BlobSums) - 1; i >= 0; i-- {
+			sumStr := manifest.BlobSums[i]
+			imgJSON := []byte(manifest.History[i])
+
+			img, err := image.NewImgJSON(imgJSON)
+			if err != nil {
+				return job.Error(fmt.Errorf("failed to parse json: %s", err))
+			}
+
 			chunks := strings.SplitN(sumStr, ":", 2)
 			if len(chunks) < 2 {
 				return job.Error(fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks))
 			}
+			sumType, checksum := chunks[0], chunks[1]
+
+			log.Infof("pulling blob %q to V1 img %s", sumStr, img.ID)
 
 			tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
 			if err != nil {
-				job.Error(err)
+				return job.Error(err)
 			}
-			if err = r.GetV2ImageBlob(remoteName, chunks[0], chunks[1], tmpFile, nil); err != nil {
-				job.Error(err)
+			if err = r.GetV2ImageBlob(remoteName, sumType, checksum, tmpFile, nil); err != nil {
+				return job.Error(err)
 			}
 			fmt.Println(tmpFile)
-		}
+			tmpFile.Seek(0, 0)
 
-		log.Debugf("%#v", manifest["history"])
+			err = s.graph.Register([]byte(imgJSON), tmpFile, img)
+			if err != nil {
+				return job.Error(err)
+			}
+
+			if err = s.Set(localName, tag, img.ID, true); err != nil {
+				return job.Error(err)
+			}
+		}
 
 		return engine.StatusOK // return from this pull, so we don't do a v1 pull
 	}
@@ -307,6 +342,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					continue
 				}
 				img, err = image.NewImgJSON(imgJSON)
+				// _RETURN HERE after getting image fom json
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 					return fmt.Errorf("Failed to parse json: %s", err)
