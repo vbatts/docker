@@ -140,7 +140,31 @@ func New(root string, options []string) (driver Driver, err error) {
 	return nil, fmt.Errorf("No supported storage backend found")
 }
 
+func MakeShared(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "shared")
+}
+
+func MakeRShared(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "rshared")
+}
+
 func MakePrivate(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "private")
+}
+
+func MakeRPrivate(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "rprivate")
+}
+
+func MakeSlave(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "slave")
+}
+
+func MakeRSlave(mountPoint string) error {
+	return ensureMountedAs(mountPoint, "rslave")
+}
+
+func ensureMountedAs(mountPoint, options string) error {
 	mounted, err := mount.Mounted(mountPoint)
 	if err != nil {
 		return err
@@ -151,6 +175,10 @@ func MakePrivate(mountPoint string) error {
 			return err
 		}
 	}
+	mounted, err = mount.Mounted(mountPoint)
+	if err != nil {
+		return err
+	}
 
-	return mount.ForceMount("", mountPoint, "none", "private")
+	return mount.ForceMount("", mountPoint, "none", options)
 }
