@@ -10,9 +10,11 @@ import (
 	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
 )
 
@@ -31,12 +33,20 @@ func mainDaemon() {
 		flag.Usage()
 		return
 	}
+
+	if err := graphdriver.MakeRShared(daemonCfg.Root); err != nil {
+		log.Fatal(err)
+	}
+
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
 		log.Fatal(err)
 	}
+	eng.OnShutdown(func() {
+		mount.Unmount(daemonCfg.Root)
+	})
 
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
