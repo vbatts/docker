@@ -15,6 +15,22 @@ func ioctlLoopCtlGetFree(fd uintptr) (int, error) {
 	return int(index), nil
 }
 
+func ioctlLoopCtlAdd(fd uintptr, index int) (int, error) {
+	i, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, LoopCtlAdd, uintptr(index))
+	if err != 0 {
+		return 0, err
+	}
+	return int(i), nil
+}
+
+func ioctlLoopCtlRemove(fd uintptr, index int) (int, error) {
+	i, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, LoopCtlRemove, uintptr(index))
+	if err != 0 {
+		return 0, err
+	}
+	return int(i), nil
+}
+
 func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopSetFd, sparseFd); err != 0 {
 		return err

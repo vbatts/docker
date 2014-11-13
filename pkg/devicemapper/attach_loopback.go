@@ -16,8 +16,10 @@ func stringToLoopName(src string) [LoNameSize]uint8 {
 	return dst
 }
 
-func getNextFreeLoopbackIndex() (int, error) {
-	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
+var loopControlDevice = "/dev/loop-control"
+
+func LoopbackGetNextFreeIndex() (int, error) {
+	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
@@ -28,6 +30,26 @@ func getNextFreeLoopbackIndex() (int, error) {
 		index = 0
 	}
 	return index, err
+}
+
+func LoopbackAddIndex(index int) (int, error) {
+	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	return ioctlLoopCtlAdd(f.Fd(), index)
+}
+
+func LoopbackRemoveIndex(index int) (int, error) {
+	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	return ioctlLoopCtlRemove(f.Fd(), index)
 }
 
 func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
@@ -89,7 +111,7 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	// Try to retrieve the next available loopback device via syscall.
 	// If it fails, we discard error and start loopking for a
 	// loopback from index 0.
-	startIndex, err := getNextFreeLoopbackIndex()
+	startIndex, err := LoopbackGetNextFreeIndex()
 	if err != nil {
 		log.Debugf("Error retrieving the next available loopback: %s", err)
 	}

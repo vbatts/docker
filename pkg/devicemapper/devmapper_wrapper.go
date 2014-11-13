@@ -68,6 +68,8 @@ const (
 
 	LoopSetFd       = C.LOOP_SET_FD
 	LoopCtlGetFree  = C.LOOP_CTL_GET_FREE
+	LoopCtlAdd      = C.LOOP_CTL_ADD
+	LoopCtlRemove   = C.LOOP_CTL_REMOVE
 	LoopGetStatus64 = C.LOOP_GET_STATUS64
 	LoopSetStatus64 = C.LOOP_SET_STATUS64
 	LoopClrFd       = C.LOOP_CLR_FD
