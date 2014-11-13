@@ -15,43 +15,6 @@ func stringToLoopName(src string) [LoNameSize]uint8 {
 	copy(dst[:], src[:])
 	return dst
 }
-
-var loopControlDevice = "/dev/loop-control"
-
-func LoopbackGetNextFreeIndex() (int, error) {
-	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	index, err := ioctlLoopCtlGetFree(f.Fd())
-	if index < 0 {
-		index = 0
-	}
-	return index, err
-}
-
-func LoopbackAddIndex(index int) (int, error) {
-	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	return ioctlLoopCtlAdd(f.Fd(), index)
-}
-
-func LoopbackRemoveIndex(index int) (int, error) {
-	f, err := os.OpenFile(loopControlDevice, os.O_RDONLY, 0644)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	return ioctlLoopCtlRemove(f.Fd(), index)
-}
-
 func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
 	// Start looking for a free /dev/loop
 	for {
