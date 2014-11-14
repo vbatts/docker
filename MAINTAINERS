@@ -162,5 +162,11 @@ bdfl = "shykes"
 	Email = "solomon@docker.com"
 	Github = "shykes"
 
+	[people.erikh]
+
+	Name = "Erik Hollensbe"
+	Email = "erik@docker.com"
+	Github = "erikh"
+
 	# ADD YOURSELF HERE
 
