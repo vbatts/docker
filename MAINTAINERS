@@ -164,3 +164,9 @@ bdfl = "shykes"
 
 	# ADD YOURSELF HERE
 
+	[people.vieux]
+
+	Name = "Victor Vieux"
+	Email = "vieux@docker.com"
+	Github = "vieux"
+
