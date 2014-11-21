@@ -98,15 +98,23 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 		}
 		targetFileInfo, err := os.Lstat(target)
 		if err != nil {
+			log.Debugf("dockerinit check failed: %s", err)
 			return false
 		}
 		selfPathFileInfo, err := os.Lstat(selfPath)
 		if err != nil {
+			log.Debugf("dockerinit check failed: %s", err)
 			return false
 		}
 		return os.SameFile(targetFileInfo, selfPathFileInfo)
 	}
-	return dockerversion.INITSHA1 != "" && dockerInitSha1(target) == dockerversion.INITSHA1
+	if dockerversion.INITSHA1 == "" {
+		log.Errorf("dockerinit check: INITSHA1 is not set")
+		return false
+	}
+	got := dockerInitSha1(target)
+	log.Debugf("sum check of %q: expected INITSHA1 of %q, got %q", target, dockerversion.INITSHA1, got)
+	return got == dockerversion.INITSHA1
 }
 
 // Figure out the path of our dockerinit (which may be SelfPath())
@@ -135,6 +143,7 @@ func DockerInitPath(localCopy string) string {
 		if dockerInit == "" {
 			continue
 		}
+		log.Debugf("dockerinit checking for path %q", dockerInit)
 		path, err := exec.LookPath(dockerInit)
 		if err == nil {
 			path, err = filepath.Abs(path)
