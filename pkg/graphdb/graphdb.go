@@ -168,6 +168,14 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 		return nil, err
 	}
 
+	// prepare this before starting the transaction
+	e := &Entity{id}
+	parentPath, name := splitPath(fullPath)
+	parent, err := db.get(parentPath)
+	if err != nil {
+		return nil, err
+	}
+
 	tx, err := db.conn.Begin()
 	if err != nil {
 		return nil, err
@@ -188,10 +196,7 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 			return nil, err
 		}
 	}
-	e := &Entity{id}
-
-	parentPath, name := splitPath(fullPath)
-	if err := db.setEdge(tx, parentPath, name, e); err != nil {
+	if err := db.setEdge(tx, parent, name, e); err != nil {
 		if err := tx.Rollback(); err != nil {
 			log.Warnf("graphdb rollback failed: %s", err)
 		}
@@ -216,11 +221,7 @@ func (db *Database) Exists(name string) bool {
 	return e != nil
 }
 
-func (db *Database) setEdge(tx *sql.Tx, parentPath, name string, e *Entity) error {
-	parent, err := db.get(parentPath)
-	if err != nil {
-		return err
-	}
+func (db *Database) setEdge(tx *sql.Tx, parent *Entity, name string, e *Entity) error {
 	if parent.id == e.id {
 		return fmt.Errorf("Cannot set self as child")
 	}
