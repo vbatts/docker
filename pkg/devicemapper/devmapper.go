@@ -354,6 +354,7 @@ func GetBlockDeviceSize(file *os.File) (uint64, error) {
 	return uint64(size), nil
 }
 
+// BlockDeviceDiscard will discard _all_ blocks from the device at path
 func BlockDeviceDiscard(path string) error {
 	file, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
@@ -366,7 +367,7 @@ func BlockDeviceDiscard(path string) error {
 		return err
 	}
 
-	if err := ioctlBlkDiscard(file.Fd(), 0, size); err != nil {
+	if err := BlockDeviceDiscardFile(file, 0, size); err != nil {
 		return err
 	}
 
@@ -375,6 +376,11 @@ func BlockDeviceDiscard(path string) error {
 	syscall.Sync()
 
 	return nil
+}
+
+// BlockDeviceDiscardFile allows specifying the offset and length of blocks to discard from file
+func BlockDeviceDiscardFile(file *os.File, offset, length uint64) error {
+	return ioctlBlkDiscard(file.Fd(), offset, length)
 }
 
 // This is the programmatic example of "dmsetup create"
