@@ -732,24 +732,6 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
-// TODO(vbatts) copied from https://github.com/docker/docker/pull/4202/files but need to ensure the logic stays sane when path is a block, not loopdevice
-func (devices *DeviceSet) getBlockDevice(name string) (*os.File, error) {
-	dirname := devices.loopbackDir()
-	filename := path.Join(dirname, name)
-
-	file, err := os.OpenFile(filename, os.O_RDWR, 0)
-	if file == nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	loopback := devicemapper.FindLoopDeviceFor(file)
-	if loopback == nil {
-		return nil, fmt.Errorf("Unable to find loopback mount for: %s", filename)
-	}
-	return loopback, nil
-}
-
 // TrimPool discard blocks from the unused portions of this DeviceSet
 func (devices *DeviceSet) TrimPool() error {
 	devices.Lock()
@@ -762,7 +744,7 @@ func (devices *DeviceSet) TrimPool() error {
 	blockSizeInSectors := totalSizeInSectors / dataTotal
 	SectorSize := blockSizeInSectors * 512
 
-	data, err := devices.getBlockDevice("data")
+	data, err := os.Open(devices.DataDevicePath())
 	if err != nil {
 		return err
 	}
@@ -773,7 +755,7 @@ func (devices *DeviceSet) TrimPool() error {
 		return err
 	}
 
-	metadata, err := devices.getBlockDevice("metadata")
+	metadata, err := os.Open(devices.MetadataDevicePath())
 	if err != nil {
 		return err
 	}
@@ -825,49 +807,36 @@ func (devices *DeviceSet) TrimPool() error {
 }
 
 func (devices *DeviceSet) ResizePool(size int64) error {
+	if len(devices.dataLoopFile) == 0 || len(devices.metadataLoopFile) == 0 {
+		return fmt.Errorf("Unable to resize block device.")
+	}
+
 	devices.Lock()
 	defer devices.Unlock()
 
-	dirname := devices.loopbackDir()
-	datafilename := path.Join(dirname, "data")
-	if len(devices.dataDevice) > 0 {
-		datafilename = devices.dataDevice
-	}
-	metadatafilename := path.Join(dirname, "metadata")
-	if len(devices.metadataDevice) > 0 {
-		metadatafilename = devices.metadataDevice
-	}
-
-	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
-	if datafile == nil {
+	datafile, err := os.Open(devices.DataDevicePath())
+	if err != nil {
 		return err
 	}
 	defer datafile.Close()
 
-	fi, err := datafile.Stat()
-	if fi == nil {
+	dataSize, err := devicemapper.GetBlockDeviceSize(datafile)
+	if err != nil {
 		return err
 	}
-
-	if fi.Size() > size {
+	if dataSize > uint64(size) {
 		return fmt.Errorf("Can't shrink file")
 	}
 
-	dataloopback := devicemapper.FindLoopDeviceFor(datafile)
-	if dataloopback == nil {
-		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
+	dataloopback, err := os.Open(devices.dataLoopFile)
+	if err != nil {
+		return err
 	}
 	defer dataloopback.Close()
 
-	metadatafile, err := os.OpenFile(metadatafilename, os.O_RDWR, 0)
-	if metadatafile == nil {
+	metadataloopback, err := os.Open(devices.metadataLoopFile)
+	if err != nil {
 		return err
-	}
-	defer metadatafile.Close()
-
-	metadataloopback := devicemapper.FindLoopDeviceFor(metadatafile)
-	if metadataloopback == nil {
-		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
 	}
 	defer metadataloopback.Close()
 
