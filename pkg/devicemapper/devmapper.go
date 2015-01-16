@@ -68,6 +68,7 @@ var (
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
 	ErrDeviceIdExists         = errors.New("Device Id Exists")
+	ErrUdevSyncNotSupported   = errors.New("udev sync not supported")
 
 	dmSawBusy  bool
 	dmSawExist bool
@@ -319,6 +320,13 @@ func GetLibraryVersion() (string, error) {
 	return version, nil
 }
 
+func basicCookieFlags() (flags uint16) {
+	if DmUdevGetSyncSupport() == 1 {
+		flags |= DmUdevDisableLibraryFallback
+	}
+	return flags
+}
+
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
 	log.Debugf("[devmapper] RemoveDevice START")
@@ -328,20 +336,22 @@ func RemoveDevice(name string) error {
 		return err
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint   = 0
+		flags  uint16 = basicCookieFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can not set cookie: %s", err)
 	}
 	defer UdevWait(cookie)
-
 	dmSawBusy = false // reset before the task is run
 	if err = task.Run(); err != nil {
+
 		if dmSawBusy {
 			return ErrBusy
 		}
 		return fmt.Errorf("Error running RemoveDevice %s", err)
 	}
-
 	return nil
 }
 
@@ -394,8 +404,10 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 		return fmt.Errorf("Can't add target %s", err)
 	}
 
-	var cookie uint = 0
-	var flags uint16 = DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	var (
+		cookie uint   = 0
+		flags  uint16 = basicCookieFlags() | DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	)
 	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
@@ -404,7 +416,6 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (CreatePool) %s", err)
 	}
-
 	return nil
 }
 
@@ -526,8 +537,11 @@ func ResumeDevice(name string) error {
 		return err
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint   = 0
+		flags  uint16 = basicCookieFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 	defer UdevWait(cookie)
@@ -535,7 +549,6 @@ func ResumeDevice(name string) error {
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceResume %s", err)
 	}
-
 	return nil
 }
 
@@ -600,17 +613,18 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't add node %s", err)
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint   = 0
+		flags  uint16 = basicCookieFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
-
 	defer UdevWait(cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (ActivateDevice) %s", err)
 	}
-
 	return nil
 }
 

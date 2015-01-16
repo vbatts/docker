@@ -83,6 +83,7 @@ const (
 )
 
 const (
+	DmUdevDisableLibraryFallback    = C.DM_UDEV_DISABLE_LIBRARY_FALLBACK
 	DmUdevDisableSubsystemRulesFlag = C.DM_UDEV_DISABLE_SUBSYSTEM_RULES_FLAG
 	DmUdevDisableDiskRulesFlag      = C.DM_UDEV_DISABLE_DISK_RULES_FLAG
 	DmUdevDisableOtherRulesFlag     = C.DM_UDEV_DISABLE_OTHER_RULES_FLAG
@@ -107,6 +108,8 @@ var (
 	DmTaskSetRo            = dmTaskSetRoFct
 	DmTaskSetSector        = dmTaskSetSectorFct
 	DmUdevWait             = dmUdevWaitFct
+	DmUdevSetSyncSupport   = dmUdevSetSyncSupportFct
+	DmUdevGetSyncSupport   = dmUdevGetSyncSupportFct
 	LogWithErrnoInit       = logWithErrnoInitFct
 )
 
@@ -233,6 +236,14 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, targ
 
 func dmUdevWaitFct(cookie uint) int {
 	return int(C.dm_udev_wait(C.uint32_t(cookie)))
+}
+
+func dmUdevSetSyncSupportFct(syncWithUdev int) {
+	(C.dm_udev_set_sync_support(C.int(syncWithUdev)))
+}
+
+func dmUdevGetSyncSupportFct() int {
+	return int(C.dm_udev_get_sync_support())
 }
 
 func dmLogInitVerboseFct(level int) {

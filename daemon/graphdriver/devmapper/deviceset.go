@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -421,7 +422,11 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 	log.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
-	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
+	devinfo, err := devicemapper.GetInfo(info.Name())
+	if err != nil {
+		return err
+	}
+	if devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
 
@@ -717,7 +722,8 @@ func setCloseOnExec(name string) {
 
 func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
 	if level >= 7 {
-		return // Ignore _LOG_DEBUG
+		// libdm debug is very verbose. If you're debugging libdm, you can comment out this check yourself
+		//level = 6
 	}
 
 	// FIXME(vbatts) push this back into ./pkg/devicemapper/
@@ -937,9 +943,29 @@ func (devices *DeviceSet) closeTransaction() error {
 	return nil
 }
 
+// (vbatts) In investigating gh4036, we've found that when the daemon is
+// compiled static, or on a host with older udev, libdevmapper, and kernel
+// then sync between libdevmapper and udev is not supported.
+// When this happens, libdevmapper fallback to creating the devices nodes itself,
+// which can result in a race with a udev.
+func (devices *DeviceSet) determineUdevSync() error {
+	devicemapper.DmUdevSetSyncSupport(1)
+	log.Debugf("devicemapper: udev sync support: %q", devicemapper.DmUdevGetSyncSupport())
+	return nil
+}
+
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// give ourselves to libdm as a log handler
+	if len(os.Getenv("DEBUG")) > 0 {
+		devicemapper.LogInitVerbose(9)
+	} else {
+		devicemapper.LogInitVerbose(2)
+	}
 	devicemapper.LogInit(devices)
+
+	if err := devices.determineUdevSync(); err != nil {
+		return err
+	}
 
 	_, err := devicemapper.GetDriverVersion()
 	if err != nil {
@@ -1389,6 +1415,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	fstype, err := ProbeFsType(info.DevName())
 	if err != nil {
+		debug.PrintStack()
 		return err
 	}
 
