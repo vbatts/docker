@@ -950,7 +950,7 @@ func (devices *DeviceSet) closeTransaction() error {
 // which can result in a race with a udev.
 func (devices *DeviceSet) determineUdevSync() error {
 	devicemapper.DmUdevSetSyncSupport(1)
-	log.Debugf("devicemapper: udev sync support: %q", devicemapper.DmUdevGetSyncSupport())
+	log.Debugf("devicemapper: udev sync support: %v", devicemapper.DmUdevGetSyncSupport())
 	return nil
 }
 
