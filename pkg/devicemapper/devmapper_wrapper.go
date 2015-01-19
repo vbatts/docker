@@ -109,6 +109,7 @@ var (
 	DmUdevWait             = dmUdevWaitFct
 	DmUdevSetSyncSupport   = dmUdevSetSyncSupportFct
 	DmUdevGetSyncSupport   = dmUdevGetSyncSupportFct
+	DmUdevCreateCookie     = dmUdevCreateCookieFct
 	DmCookieSupported      = dmCookieSupportedFct
 	LogWithErrnoInit       = logWithErrnoInitFct
 )
@@ -244,6 +245,14 @@ func dmUdevGetSyncSupportFct() int {
 
 func dmUdevWaitFct(cookie uint) int {
 	return int(C.dm_udev_wait(C.uint32_t(cookie)))
+}
+
+func dmUdevCreateCookieFct(cookie *uint) int {
+	cCookie := C.uint32_t(*cookie)
+	defer func() {
+		*cookie = uint(cCookie)
+	}()
+	return int(C.dm_udev_create_cookie(&cCookie))
 }
 
 func dmCookieSupportedFct() int {

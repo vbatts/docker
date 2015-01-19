@@ -59,6 +59,7 @@ var (
 	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
 	ErrGetBlockSize           = errors.New("Can't get block size")
 	ErrUdevWait               = errors.New("wait on udev cookie failed")
+	ErrUdevCookie             = errors.New("creating udev cookie failed")
 	ErrSetDevDir              = errors.New("dm_set_dev_dir failed")
 	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
 	ErrCreateRemoveTask       = errors.New("Can't create task of type DeviceRemove")
@@ -289,6 +290,13 @@ func UdevWait(cookie uint) error {
 		return ErrUdevWait
 	}
 	return nil
+}
+
+func UdevCookie() (cookie *uint, err error) {
+	if ret := DmUdevCreateCookie(cookie); ret != 1 {
+		err = ErrUdevCookie
+	}
+	return cookie, err
 }
 
 func LogInitVerbose(level int) {
