@@ -292,10 +292,11 @@ func UdevWait(cookie uint) error {
 	return nil
 }
 
-func UdevCookie() (cookie *uint, err error) {
-	if ret := DmUdevCreateCookie(cookie); ret != 1 {
+func UdevCookie() (cookie uint, err error) {
+	if ret := DmUdevCreateCookie(&cookie); ret != 1 {
 		err = ErrUdevCookie
 	}
+	log.Debugf("[devicemapper] cookie of %q", cookie)
 	return cookie, err
 }
 
@@ -363,7 +364,10 @@ func RemoveDevice(name string) error {
 		return err
 	}
 
-	var cookie uint = 0
+	cookie, err := UdevCookie()
+	if err != nil {
+		return err
+	}
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can not set cookie: %s", err)
 	}
@@ -429,7 +433,10 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 		return fmt.Errorf("Can't add target %s", err)
 	}
 
-	var cookie uint = 0
+	cookie, err := UdevCookie()
+	if err != nil {
+		return err
+	}
 	var flags uint16 = DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
 	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
@@ -561,7 +568,10 @@ func ResumeDevice(name string) error {
 		return err
 	}
 
-	var cookie uint = 0
+	cookie, err := UdevCookie()
+	if err != nil {
+		return err
+	}
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
@@ -635,7 +645,10 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't add node %s", err)
 	}
 
-	var cookie uint = 0
+	cookie, err := UdevCookie()
+	if err != nil {
+		return err
+	}
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}

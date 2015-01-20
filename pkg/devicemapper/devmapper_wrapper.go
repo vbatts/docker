@@ -35,6 +35,17 @@ static void	log_with_errno_init()
 {
   dm_log_with_errno_init(log_cb);
 }
+
+
+int my_udev_create_cookie(uint32_t *cookie)
+{
+#ifdef dm_udev_create_cookie
+  return dm_udev_create_cookie(cookie);
+#endif
+  *cookie = 0;
+  return 1;
+}
+
 */
 import "C"
 
@@ -252,7 +263,7 @@ func dmUdevCreateCookieFct(cookie *uint) int {
 	defer func() {
 		*cookie = uint(cCookie)
 	}()
-	return int(C.dm_udev_create_cookie(&cCookie))
+	return int(C.my_udev_create_cookie(&cCookie))
 }
 
 func dmCookieSupportedFct() int {
