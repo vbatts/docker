@@ -181,6 +181,30 @@ func (devices *DeviceSet) getPoolDevName() string {
 	return getDevName(devices.getPoolName())
 }
 
+// scanDevNames return all the active devices for our prefix, that are not the
+// pool or base. Rather than returning DevInfo that are known, we are scanning
+// for devices in our prefix.
+func (devices *DeviceSet) scanDevNames() ([]*DevInfo, error) {
+	gPat := getDevName(devices.devicePrefix + "-*")
+	matches, err := filepath.Glob(gPat)
+	if err != nil {
+		return nil, err
+	}
+	ret := []*DevInfo{}
+	for _, match := range matches {
+		if match == "" || strings.HasSuffix(match, "-pool") || strings.HasSuffix(match, "-base") {
+			continue
+		}
+		prefix := getDevName(devices.devicePrefix + "-")
+		h := strings.TrimPrefix(match, prefix)
+		di := &DevInfo{Hash: h, devices: devices, mountPath: match}
+		ret = append(ret, di)
+	}
+	return ret, nil
+}
+
+// hasImage, despite the name, returns the whether the path to the _loopback_
+// image file exists (e.g. "data" and "metadata")
 func (devices *DeviceSet) hasImage(name string) bool {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
@@ -972,7 +996,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	}
 
 	// Set the device prefix from the device id and inode of the docker root dir
-
+	//
+	// FIXME(vbatts) if a block device is provided, then this needs to be the
+	// stat of the respective block device
 	st, err := os.Stat(devices.root)
 	if err != nil {
 		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
@@ -994,6 +1020,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		log.Debugf("Error device devicemapper.GetInfo: %s", err)
 		return err
 	}
+	log.Debugf("SUCH %q and %q", devices.dataDevice, devices.metadataDevice)
 
 	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
 	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
@@ -1032,13 +1059,13 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				log.Debugf("Error device ensureImage (data): %s", err)
 				return err
 			}
+			devices.dataLoopFile = data
+			devices.dataDevice = dataFile.Name()
 
 			dataFile, err = devicemapper.AttachLoopDevice(data)
 			if err != nil {
 				return err
 			}
-			devices.dataLoopFile = data
-			devices.dataDevice = dataFile.Name()
 		} else {
 			dataFile, err = os.OpenFile(devices.dataDevice, os.O_RDWR, 0600)
 			if err != nil {
@@ -1047,6 +1074,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		defer dataFile.Close()
 
+		log.Debugf("SUCH %q and %q", devices.dataDevice, devices.metadataDevice)
 		if devices.metadataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/metadata
 
@@ -1065,13 +1093,13 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				log.Debugf("Error device ensureImage (metadata): %s", err)
 				return err
 			}
+			devices.metadataLoopFile = metadata
+			devices.metadataDevice = metadataFile.Name()
 
 			metadataFile, err = devicemapper.AttachLoopDevice(metadata)
 			if err != nil {
 				return err
 			}
-			devices.metadataLoopFile = metadata
-			devices.metadataDevice = metadataFile.Name()
 		} else {
 			metadataFile, err = os.OpenFile(devices.metadataDevice, os.O_RDWR, 0600)
 			if err != nil {
@@ -1333,6 +1361,7 @@ func (devices *DeviceSet) Shutdown() error {
 
 	devices.devicesLock.Lock()
 	for _, info := range devices.Devices {
+		log.Debugf("SUCH DEVICE %#v", info)
 		devs = append(devs, info)
 	}
 	devices.devicesLock.Unlock()
@@ -1354,6 +1383,28 @@ func (devices *DeviceSet) Shutdown() error {
 			devices.Unlock()
 		}
 		info.lock.Unlock()
+	}
+
+	// now that we've deactivated devices we know of, let's clean up any
+	// potential left overs from prior daemon that we don't have info on.
+	if devs, err := devices.scanDevNames(); err != nil {
+		log.Debugf("Shutdown finding device paths , error: %s", err)
+	} else {
+		for _, dev := range devs {
+			dev.lock.Lock()
+			log.Debugf("Shutdown cleaning up %q", dev.mountPath)
+			if err := syscall.Unmount(dev.mountPath, syscall.MNT_DETACH); err != nil {
+				log.Warnf("Shutdown unmounting %s, error: %s", dev.mountPath, err)
+				dev.lock.Unlock()
+				continue
+			}
+			devices.Lock()
+			if err := devices.deactivateDevice(dev); err != nil {
+				log.Debugf("Shutdown deactivate %s , error: %s", dev.Hash, err)
+			}
+			devices.Unlock()
+			dev.lock.Unlock()
+		}
 	}
 
 	info, _ := devices.lookupDevice("")
