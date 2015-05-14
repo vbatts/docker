@@ -127,6 +127,12 @@ type Status struct {
 	DeferredRemoveEnabled bool
 }
 
+// Structure used to export image/container metadata in docker inspect.
+type Metadata struct {
+	deviceId   int
+	deviceSize uint64 // size in 512 byte sectors
+}
+
 type DevStatus struct {
 	DeviceId            int
 	Size                uint64
@@ -1698,6 +1704,26 @@ func (devices *DeviceSet) Status() *Status {
 	}
 
 	return status
+}
+
+// Status returns the current status of this deviceset
+func (devices *DeviceSet) ExportDeviceMetadata(hash string) (*Metadata, error) {
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	metadata := &Metadata{}
+	metadata.deviceId = info.DeviceId
+	metadata.deviceSize = info.Size
+
+	return metadata, nil
 }
 
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {

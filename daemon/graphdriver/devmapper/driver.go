@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -89,6 +90,21 @@ func (d *Driver) Status() [][2]string {
 		status = append(status, [2]string{"Library Version", vStr})
 	}
 	return status
+}
+
+func (d *Driver) GetMetadata(id string) ([][2]string, error) {
+	m, err := d.DeviceSet.ExportDeviceMetadata(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := [][2]string{
+		{"Device ID", strconv.Itoa(m.deviceId)},
+		{"Device Size", strconv.FormatUint(m.deviceSize, 10)},
+	}
+
+	return metadata, nil
 }
 
 func (d *Driver) Cleanup() error {

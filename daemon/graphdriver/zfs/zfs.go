@@ -196,6 +196,10 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
+func (d *Driver) GetMetadata(id string) ([][2]string, error) {
+	return nil, nil
+}
+
 func (d *Driver) cloneFilesystem(name, parentName string) error {
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
 	parentDataset := zfs.Dataset{Name: parentName}
