@@ -6,6 +6,7 @@ package btrfs
 #include <stdlib.h>
 #include <dirent.h>
 #include <btrfs/ioctl.h>
+#include "ioctl.h"
 */
 import "C"
 
@@ -16,6 +17,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
 )
@@ -59,6 +61,28 @@ func (d *Driver) String() string {
 	return "btrfs"
 }
 
+func (d *Driver) Info(path string) ([]string, error) {
+	dir, err := openDir(path)
+	if err != nil {
+		return nil, err
+	}
+	defer closeDir(dir)
+
+	var args *C.struct_btrfs_ioctl_space_args
+	args = C.load_space_info(C.int(getDirFd(dir)), C.CString(path))
+	logrus.Infof("[btrfs] %q: total_spaces: %d; spaces: %#v; args: %d",
+		path,
+		(*args).total_spaces,
+		(*args).spaces,
+		len((*args).spaces))
+	for i := 0; i < int(args.total_spaces); i++ {
+		logrus.Infof("[btrfs] %q, total_bytes: %d; used_bytes: %d", path,
+			args.spaces[i].total_bytes,
+			args.spaces[i].used_bytes)
+	}
+	return nil, nil
+}
+
 func (d *Driver) Status() [][2]string {
 	status := [][2]string{}
 	if bv := BtrfsBuildVersion(); bv != "-" {
@@ -66,6 +90,9 @@ func (d *Driver) Status() [][2]string {
 	}
 	if lv := BtrfsLibVersion(); lv != -1 {
 		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
+	}
+	if _, err := d.Info(d.subvolumesDir()); err != nil {
+		logrus.Errorf("[btrfs] %s", err)
 	}
 	return status
 }
