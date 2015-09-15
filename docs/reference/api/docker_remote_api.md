@@ -85,6 +85,8 @@ existing directory inside a container's filesystem.
 This copy endpoint has been deprecated in favor of the above `archive` endpoint
 which can be used to download files and directories from a container.
 
+* `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
+
 **New!**
 The `hostConfig` option now accepts the field `GroupAdd`, which specifies a list of additional
 groups that the container process will run as.
