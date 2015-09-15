@@ -90,6 +90,7 @@ type JSONMessage struct {
 	ID              string        `json:"id,omitempty"`
 	From            string        `json:"from,omitempty"`
 	Time            int64         `json:"time,omitempty"`
+	TimeNano        int64         `json:"timeNano,omitempty"`
 	Error           *JSONError    `json:"errorDetail,omitempty"`
 	ErrorMessage    string        `json:"error,omitempty"` //deprecated
 }
@@ -109,8 +110,8 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	} else if jm.Progress != nil && jm.Progress.String() != "" { //disable progressbar in non-terminal
 		return nil
 	}
-	if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(timeutils.RFC3339NanoFixed))
+	if jm.Time != 0 || jm.TimeNano != 0 {
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, jm.TimeNano).Format(timeutils.RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)
